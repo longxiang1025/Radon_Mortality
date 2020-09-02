@@ -1,0 +1,5 @@
+1.Re-group the radon measurements by season instead of by month to increase representativity
+2.Extract soil moisture information onto prediction model.
+3.Extract precipitation, air pressure, soil temperature and mosisture information onto prediction model.
+4.Run an ensemble learning instead of relying on a single model
+5.
