@@ -1,4 +1,5 @@
 r<-as.numeric(Sys.getenv("Sim"))
+#1991-2019
 year=1991+as.integer(r/12)
 month=1+r%%12
 
@@ -34,7 +35,6 @@ load(here::here("Data","GeoData","Boundaries.RData"))
 
 zips=zips[zips$STATE%in%c("MA","NH","CT","RI","VT","ME"),]
 
-zips=zips[zips$STATE%in%c("MA","NH","CT","RI","VT","ME"),]
 uwind<-stack(here::here("Data","Metero","uwnd.10m.mon.mean.nc"))
 vwind<-stack(here::here("Data","Metero","vwnd.10m.mon.mean.nc"))
 temp<-stack(here::here("Data","Metero","air.2m.mon.mean.nc"))
@@ -44,8 +44,8 @@ rhum=stack(here::here("Data","Metero","rhum.2m.mon.mean.nc"))
 snowc=stack(here::here("Data","Metero","snowc.mon.mean.nc"))
 soilm=stack(here::here("Data","Metero","soilm.mon.mean.nc"))
 acpcp=stack(here::here("Data","Metero","acpcp.mon.mean.nc"))
-
-
+tsoil=stack(here::here("Data","Metero","tsoil.mon.mean.nc"))
+soilw=stack(here::here("Data","Metero","soilw.mon.mean.nc"))
 month_c=formatC(month,width = 2,flag=0)
 first_day=as.Date(paste0(year,"-",month_c,"-01"))
 last_day=as.Date(paste0(year,"-",month_c,"-01"))+days_in_month(as.Date(paste0(year,"-",month_c,"-01")))-1
@@ -66,9 +66,11 @@ m_albedo<-extract_feature(albedo[[slice]],zips)
 m_temp<-extract_feature(temp[[slice]],zips)
 m_uwnd<-extract_feature(vwind[[slice]],zips)
 m_vwnd<-extract_feature(uwind[[slice]],zips)
+m_soilt<-extract_feature(tsoil[[slice]],zips)
+m_soilw<-extract_feature(soilw[[slice]],zips)
 Sys.time()
-m<-cbind.data.frame(zips$ZIP,m_uwnd,m_vwnd,m_temp,m_albedo,m_hpbl,m_rhum,m_snowc,m_soilm,m_acpcp)
-names(m)<-c("ZIP","uwnd","vwnd","temp","albedo","hpbl","rhum","snowc","soilm","pcp")
+m<-cbind.data.frame(zips$ZIP,m_uwnd,m_vwnd,m_temp,m_albedo,m_hpbl,m_rhum,m_snowc,m_soilm,m_acpcp,m_soilt,m_soilw)
+names(m)<-c("ZIP","uwnd","vwnd","temp","albedo","hpbl","rhum","snowc","soilm","pcp","soilt","soilw")
 m$year=year
 m$month=month
 save(file=here::here("Data","Zip_Metro",paste0(year,"_",month,".RData")),m)

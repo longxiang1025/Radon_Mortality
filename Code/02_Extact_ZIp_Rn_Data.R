@@ -46,29 +46,23 @@ un_repaired=ne_radon%>%filter(is.na(Repair_Date))
 #in the repaired home, remove all records after repairment except real property check
 repaired=repaired%>%filter(!(ENDDATE>=Repair_Date & TESTTYPE%in%c("AFTERREPAIRS","FOLLOWUP")))
 ne_radon=bind_rows(repaired,un_repaired)
-ne_radon=ne_radon%>%filter%>%filter(lubridate::year(STARTDATE)>1995)
+ne_radon=ne_radon%>%filter%>%filter(lubridate::year(STARTDATE)>1991)
+ne_radon$Month=lubridate::month(ne_radon$STARTDATE)
+#create a month season look up table
+trans<-cbind.data.frame(Month=1:12,
+                        Season=c("Winter","Winter","Spring","Spring","Spring","Summer",
+                                 "Summer","Summer","Autum","Autum","Autum","Winter"))
+ne_radon=ne_radon%>%left_join(trans)
+ne_radon$Year=lubridate::year(ne_radon$STARTDATE)
 #the number of records in each zipcode
-zip_month<-ne_radon%>%
-  group_by(year=lubridate::year(STARTDATE),month=lubridate::month(STARTDATE),ZIPCODE)%>%
-  summarise(month_Rn=mean(PCI.L),month_var=sd(PCI.L),n_obs=n_distinct(FINGERPRINT))
-
-zip_annual<-ne_radon%>%
-  group_by(year=lubridate::year(STARTDATE),ZIPCODE)%>%
-  summarise(annual_Rn=mean(PCI.L),annual_var=sd(PCI.L),
-            n_winter=sum(month(STARTDATE)<4)+sum(month(STARTDATE)>11),
-            n_spring=sum(month(STARTDATE)>3&month(STARTDATE)<7),
-            n_summer=sum(month(STARTDATE)>6&month(STARTDATE)<10),
-            n_autumn=sum(month(STARTDATE)>9&month(STARTDATE)<12),
-            n_obs=n_distinct(FINGERPRINT))
+zip_season<-ne_radon%>%
+  group_by(Year,Season,ZIPCODE)%>%
+  summarise(month_Rn=mean(PCI.L),month_var=sd(PCI.L),n_units=n_distinct(FINGERPRINT),n_obs=length(FINGERPRINT))
 
 
 # a total of 594 zipcodes have at least one month with over 5 radon measurements
 # zipcode 02879 located in RI has 149 months, windham has 7 months.
 #zip_summ<-zip_month%>%filter(n>4)%>%group_by(ZIPCODE)%>%count()%>%arrange(desc(n))
 
-#finally, we have 2908 monthly measuements
-zip_month_Rn=zip_month%>%filter(n_obs>2)%>%arrange(year,desc(month))
-save(file=here::here("Data","Medium Data","Monthly_Rn.RData"),zip_month_Rn)
-save(file = here::here("Data","Medium Data","Annual_Rn.RData"),zip_annual)
-save(file = here::here("Data","Medium Data","NE_Rn.RData"),ne_radon)
+save(file = here::here("Data","Medium Data","NE_Season_Rn.RData"),zip_season)
 

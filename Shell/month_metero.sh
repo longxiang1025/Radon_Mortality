@@ -1,17 +1,18 @@
 #!/bin/bash
-#SBATCH -p serial_requeue
+#SBATCH -p shared
 #SBATCH -n 1
 #SBATCH --mem=18000
-#SBATCH -t 1280
-#SBATCH -o /n/holyscratch01/koutrakis_lab/longxiang/log/slurm_%A_%a.out
+#SBATCH -t 60
+#SBATCH -e /n/holyscratch01/koutrakis_lab/Users/loli/log/log_error/Info_%A_%a.err
+#SBATCH -o /n/holyscratch01/koutrakis_lab/Users/loli/log/log_mete/Mete_%A_%a.out # Standard output
 export R_LIBS_USER=$HOME/apps/R:$R_LIBS_USER
 
-source /n/home02/loli/load_modules.sh
+module load R/3.6.1-fasrc02
 
 Sim=${SLURM_ARRAY_TASK_ID}
 
 export Sim
 
-Rscript --quiet --no-restore --no-save /n/koutrakis_lab/lab/Fracking_Radon/Code/01_Process_Meterological_Data.R
+Rscript --quiet --no-restore --no-save /n/koutrakis_lab/lab/Radon_Mortality/Code/01_Process_Meterological_Data.R
 
 sleep 3 # pause to be kind to the scheduler
