@@ -17,32 +17,35 @@ report_result<-function(m,obs,w,id,in_id){
   return(cbind.data.frame(id,in_id,cor_w,rmse_w))
 }
 
-#create a parameter table for model tuning
-#random forest model: ID=1
-#p1=expand.grid(ID=1,mtry=seq(10,50,5),min.nodes=seq(1,5))
-#neural network model: ID=2
-#p2=expand.grid(ID=2,size=seq(5,25,5),decay=c(1e-4,1e-3,1e-2,1e-1))
-#multivariate additive regression splines : ID=3
-#p3=expand.grid(ID=3,nprune=seq(20,40,5),degree=seq(2,5))
-#GAM boost: ID=4
-#p4=expand.grid(ID=4,mstop=c(1000,2000,5000,10000), prune=seq(1,5))
-#Gradient Boosting Machine: ID=5
-#p5=expand.grid(ID=5,n.trees=seq(100,2000,300), interaction.depth=seq(5,15,5),
+# #create a parameter table for model tuning
+# #random forest model: ID=1
+# p1=expand.grid(ID=1,mtry=seq(10,50,5),min.nodes=seq(1,5))
+# #neural network model: ID=2
+# p2=expand.grid(ID=2,size=seq(5,25,5),decay=c(1e-4,1e-3,1e-2,1e-1))
+# #glmboost : ID=3
+# p3=expand.grid(ID=4,mstop=c(1000,2000,5000,10000), prune=seq(1,5))
+# #GAM boost: ID=4
+# p4=expand.grid(ID=4,mstop=c(1000,2000,5000,10000), prune=seq(1,5))
+# #Gradient Boosting Machine: ID=5
+# p5=expand.grid(ID=5,n.trees=seq(100,2000,300), interaction.depth=seq(5,15,5),
 #               n.minobsinnode=c(3,5,10),shrinkage=c(0.01,0.05,0.1))
-#para_list=list(p1,p2,p3,p4,p5)
-#t_length=simplify2array(lapply(para_list,nrow))
-#id=c(0,rep(1,t_length[1]),rep(2,t_length[2]),
-#     rep(3,t_length[3]),rep(4,t_length[4]),rep(5,t_length[5]))
-#in_id=c(1,seq(1,t_length[1]),seq(1,t_length[2]),
-#        seq(1,t_length[3]),seq(1,t_length[4]),seq(1,t_length[5]))
-#para_table=cbind.data.frame(id,in_id)
-#a total of 241 parameter sets are tested, 0 for Bayesglm
-#Bayesian GLM, no need to prune
-
-#tune_table=cbind.data.frame(para_table,cor_w=0,rmse_w=0)
-#save(file=here::here("Data","Medium Data","Tune_Results.RData"),tune_table)
-#save(file=here::here("Data","Medium Data","ParaList.RData"),para_list)
-#save(file=here::here("Data","Medium Data","ParaTable.RData"),para_table)
+# #Regressino Tree (rpart2)
+# p6=expand.grid(ID=6,maxdepth=seq(5,30,5))
+# 
+# para_list=list(p1,p2,p3,p4,p5,p6)
+# t_length=simplify2array(lapply(para_list,nrow))
+# id=c(0,rep(1,t_length[1]),rep(2,t_length[2]),
+#      rep(3,t_length[3]),rep(4,t_length[4]),rep(5,t_length[5]),rep(6,t_length[6]))
+# in_id=c(1,seq(1,t_length[1]),seq(1,t_length[2]),
+#         seq(1,t_length[3]),seq(1,t_length[4]),seq(1,t_length[5]),seq(1,t_length[6]))
+# para_table=cbind.data.frame(id,in_id)
+# #a total of 301 parameter sets are tested, 0 for Bayesglm
+# #Bayesian GLM, no need to prune
+# 
+# tune_table=cbind.data.frame(para_table,cor_w=0,rmse_w=0)
+# save(file=here::here("Data","Medium Data","Tune_Results.RData"),tune_table)
+# save(file=here::here("Data","Medium Data","ParaList.RData"),para_list)
+# save(file=here::here("Data","Medium Data","ParaTable.RData"),para_table)
 
 load(here::here("Data","Medium Data","ParaList.RData"))
 load(here::here("Data","Medium Data","ParaTable.RData"))
@@ -119,7 +122,7 @@ if(id==1){
   load(here::here("Data","Medium Data","Tune_Results.RData"))
   tune_table[tune_table$id==id&tune_table$in_id==in_id,]=report_result(m.rf,training_data$L_radon,w=training_data$n_units,
                 id=id,in_id = in_id)
-  print(report_result(m.earth,training_data$L_radon,w=training_data$n_units,
+  print(report_result(m.rf,training_data$L_radon,w=training_data$n_units,
                       id=id,in_id = in_id))
   save(file=here::here("Data","Medium Data","Tune_Results.RData"),tune_table)
 }
@@ -143,30 +146,30 @@ if(id==2){
   load(here::here("Data","Medium Data","Tune_Results.RData"))
   tune_table[tune_table$id==id&tune_table$in_id==in_id,]=report_result(m.nn,training_data$L_radon,w=training_data$n_units,
                                                                        id=id,in_id = in_id)
-  print(report_result(m.earth,training_data$L_radon,w=training_data$n_units,
+  print(report_result(m.nn,training_data$L_radon,w=training_data$n_units,
                       id=id,in_id = in_id))
   save(file=here::here("Data","Medium Data","Tune_Results.RData"),tune_table)
 }
 if(id==3){
-  #MARS
-  nprune=para_list[[id]][in_id,"nprune"]
-  degree=para_list[[id]][in_id,"degree"]
-  m.earth=caret::train(
+  #glmboost
+  nprune=para_list[[id]][in_id,"mstop"]
+  degree=para_list[[id]][in_id,"prune"]
+  m.glm=caret::train(
     y=training_data$L_radon,
     x=training_data[,features],
     weights=training_data$n_units,
     metric="RMSE",
     trControl=control,
-    method="earth",
+    method="glmboost",
     tuneGrid=data.frame(
       .nprune=nprune,
       .degree=degree
     )
   )
   load(here::here("Data","Medium Data","Tune_Results.RData"))
-  tune_table[tune_table$id==id&tune_table$in_id==in_id,]=report_result(m.earth,training_data$L_radon,w=training_data$n_units,
+  tune_table[tune_table$id==id&tune_table$in_id==in_id,]=report_result(m.glm,training_data$L_radon,w=training_data$n_units,
                                                                        id=id,in_id = in_id)
-  print(report_result(m.earth,training_data$L_radon,w=training_data$n_units,
+  print(report_result(m.glm,training_data$L_radon,w=training_data$n_units,
                       id=id,in_id = in_id))
   save(file=here::here("Data","Medium Data","Tune_Results.RData"),tune_table)
 }
@@ -189,7 +192,7 @@ if(id==4){
   load(here::here("Data","Medium Data","Tune_Results.RData"))
   tune_table[tune_table$id==id&tune_table$in_id==in_id,]=report_result(m.gamboost,training_data$L_radon,w=training_data$n_units,
                                                                        id=id,in_id = in_id)
-  print(report_result(m.earth,training_data$L_radon,w=training_data$n_units,
+  print(report_result(m.gamboost,training_data$L_radon,w=training_data$n_units,
                       id=id,in_id = in_id))
   save(file=here::here("Data","Medium Data","Tune_Results.RData"),tune_table)
 }
@@ -214,10 +217,28 @@ if(id==5){
   load(here::here("Data","Medium Data","Tune_Results.RData"))
   tune_table[tune_table$id==id&tune_table$in_id==in_id,]=report_result(m.gbm,training_data$L_radon,w=training_data$n_units,
                                                                        id=id,in_id = in_id)
-  print(report_result(m.earth,training_data$L_radon,w=training_data$n_units,
+  print(report_result(m.gbm,training_data$L_radon,w=training_data$n_units,
                       id=id,in_id = in_id))
   save(file=here::here("Data","Medium Data","Tune_Results.RData"),tune_table)
 }
-
+if(id==6){
+  #Regression Tree
+  maxdepth=para_list[[id]][in_id,"maxdepth"]
+  
+  m.cart=caret::train(
+    y=training_data$L_radon,
+    x=training_data[,features],
+    weights=training_data$n_units,
+    method="rpart2",
+    trControl=control,
+    tuneGrid=data.frame(.maxdepth=maxdepth)
+  )
+  load(here::here("Data","Medium Data","Tune_Results.RData"))
+  tune_table[tune_table$id==id&tune_table$in_id==in_id,]=report_result(m.cart,training_data$L_radon,w=training_data$n_units,
+                                                                       id=id,in_id = in_id)
+  print(report_result(m.cart,training_data$L_radon,w=training_data$n_units,
+                      id=id,in_id = in_id))
+  save(file=here::here("Data","Medium Data","Tune_Results.RData"),tune_table)
+}
 
 

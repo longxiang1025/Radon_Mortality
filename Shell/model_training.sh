@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH -p serial_requeue
+#SBATCH -p shared
 #SBATCH -n 1
 #SBATCH --mem=18000
 #SBATCH -t 1280
