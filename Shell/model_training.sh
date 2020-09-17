@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH -p shared
 #SBATCH -n 1
-#SBATCH --mem=18000
+#SBATCH --mem=90000
 #SBATCH -t 1280
 #SBATCH -e /n/holyscratch01/koutrakis_lab/Users/loli/log/log_error/Rn_%A_%a.err
 #SBATCH -o /n/holyscratch01/koutrakis_lab/Users/loli/log/log_rn_model/Model_%A_%a.out # Standard output

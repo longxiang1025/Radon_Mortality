@@ -19,13 +19,13 @@ report_result<-function(m,obs,w,id,in_id){
 
 # #create a parameter table for model tuning
 # #random forest model: ID=1
-# p1=expand.grid(ID=1,mtry=seq(10,50,5),min.nodes=seq(1,5))
+# p1=expand.grid(ID=1,mtry=seq(10,60,5),min.nodes=seq(1,5))
 # #neural network model: ID=2
 # p2=expand.grid(ID=2,size=seq(5,25,5),decay=c(1e-4,1e-3,1e-2,1e-1))
 # #glmboost : ID=3
-# p3=expand.grid(ID=4,mstop=c(1000,2000,5000,10000), prune=seq(1,5))
+# p3=expand.grid(ID=4,mstop=c(1000,2000,5000,10000,20000), prune=seq(1,5))
 # #GAM boost: ID=4
-# p4=expand.grid(ID=4,mstop=c(1000,2000,5000,10000), prune=seq(1,5))
+# p4=expand.grid(ID=4,mstop=c(1000,2000,5000,10000,20000), prune=seq(1,5))
 # #Gradient Boosting Machine: ID=5
 # p5=expand.grid(ID=5,n.trees=seq(100,2000,300), interaction.depth=seq(5,15,5),
 #               n.minobsinnode=c(3,5,10),shrinkage=c(0.01,0.05,0.1))
@@ -39,7 +39,7 @@ report_result<-function(m,obs,w,id,in_id){
 # in_id=c(1,seq(1,t_length[1]),seq(1,t_length[2]),
 #         seq(1,t_length[3]),seq(1,t_length[4]),seq(1,t_length[5]),seq(1,t_length[6]))
 # para_table=cbind.data.frame(id,in_id)
-# #a total of 301 parameter sets are tested, 0 for Bayesglm
+# #a total of 321 parameter sets are tested, 0 for Bayesglm
 # #Bayesian GLM, no need to prune
 # 
 # tune_table=cbind.data.frame(para_table,cor_w=0,rmse_w=0)
@@ -50,38 +50,38 @@ report_result<-function(m,obs,w,id,in_id){
 load(here::here("Data","Medium Data","ParaList.RData"))
 load(here::here("Data","Medium Data","ParaTable.RData"))
 load(here::here("Data","Medium Data","Tune_Results.RData"))
-load(here::here("Data","Medium Data","Monthly_Mete.RData"))
-load(here::here("Data","Medium Data","Rn_Geology.RData"))
-load(here::here("Data","Medium Data","NE_Season_Rn.RData"))
-load(here::here("Data","Medium Data","ZIP_Housing.RData"))
+# load(here::here("Data","Medium Data","Monthly_Mete.RData"))
+# load(here::here("Data","Medium Data","Rn_Geology.RData"))
+# load(here::here("Data","Medium Data","NE_Season_Rn.RData"))
+# load(here::here("Data","Medium Data","ZIP_Housing.RData"))
 
 id=para_table[sect_id,"id"]
 in_id=para_table[sect_id,"in_id"]
 
-zip_season_rn=zip_season
+#zip_season_rn=zip_season
 
-zip_mete_record=zip_mete_record%>%mutate(Season= cut(x=month,breaks=c(0,2,6,9,11,12),labels=c("Winter","Spring","Summer","Autumn","Winter")))
-zip_season_mete=zip_mete_record%>%group_by(ZIP,year,Season)%>%summarise(
-  uwnd=mean(uwnd),
-  vwnd=mean(vwnd),
-  temp=mean(temp),
-  albedo=mean(albedo),
-  hpbl=mean(hpbl),
-  rhum=mean(rhum),
-  snowc=mean(snowc),
-  soilm=mean(soilm),
-  pcp=mean(pcp),
-  soilt=mean(soilt)
-)
+#zip_mete_record=zip_mete_record%>%mutate(Season= cut(x=month,breaks=c(0,2,6,9,11,12),labels=c("Winter","Spring","Summer","Autumn","Winter")))
+#zip_season_mete=zip_mete_record%>%group_by(ZIP,year,Season)%>%summarise(
+#  uwnd=mean(uwnd),
+#  vwnd=mean(vwnd),
+#  temp=mean(temp),
+#  albedo=mean(albedo),
+#  hpbl=mean(hpbl),
+#  rhum=mean(rhum),
+#  snowc=mean(snowc),
+#  soilm=mean(soilm),
+#  pcp=mean(pcp),
+#  soilt=mean(soilt)
+#)
 
 
-radon_obs=zip_season_rn%>%left_join(zip_geo,by=c("ZIPCODE"="ZIP"))
-radon_obs=radon_obs%>%left_join(zips_house,by=c("ZIPCODE"="ZIP"))
-radon_obs$Season=as.character(radon_obs$Season)
-radon_obs[radon_obs$Season=="Autum","Season"]="Autumn"
-radon_obs=radon_obs%>%left_join(zip_season_mete,by=c("Year"="year",
-                                                     "Season"="Season",
-                                                     "ZIPCODE"="ZIP"))
+#radon_obs=zip_season_rn%>%left_join(zip_geo,by=c("ZIPCODE"="ZIP"))
+#radon_obs=radon_obs%>%left_join(zips_house,by=c("ZIPCODE"="ZIP"))
+#radon_obs$Season=as.character(radon_obs$Season)
+#radon_obs[radon_obs$Season=="Autum","Season"]="Autumn"
+#radon_obs=radon_obs%>%left_join(zip_season_mete,by=c("Year"="year",
+#                                                     "Season"="Season",
+#                                                     "ZIPCODE"="ZIP"))
 #valid_measurements=ne_radon%>%group_by(Year,Month,ZIPCODE)%>%summarise(mean_Rn=mean(PCI.L),var_Rn=sd(PCI.L),n_obs=n_distinct(FINGERPRINT))
 #save(file=here::here("Data","Medium Data","Valid_Rn_Measurement.RData"),radon_obs)
 load(here::here("Data","Medium Data","Valid_Rn_Measurement.RData"))
@@ -92,18 +92,27 @@ training_data$L_radon=log10(training_data$month_Rn)
 training_data=as.data.frame(training_data)
 training_data=na.omit(training_data)
 
-features=names(training_data)[c(1,13:31,33:86)]
+features=names(training_data)[c(1,14:88)]
 CVfolds <- 10
 CVrepeats <- 3
 
 #set.seed(42)
-indexPreds <- createMultiFolds(training_data$month_Rn, k= CVfolds, times=CVrepeats)
+#indexPreds <- createMultiFolds(training_data$month_Rn, k= CVfolds, times=CVrepeats)
 #save(file=here::here("Data","CV_Folds.RData"),indexPreds)
-#load(here::here("Data","CV_Folds.RData"))
+load(here::here("Data","CV_Folds.RData"))
+weight_summary<-function(data, lev = NULL, model = NULL){
+  cor=corr(data[,c("obs","pred")],w=data[,"weights"])
+  rmse=sqrt(sum((data[,'obs']-data[,'pred'])^2*data[,'weights'])/sum(data[,'weights']))
+  mae=sum(abs(data[,'obs']-data[,'pred'])*data[,'weights'])/sum(data[,'weights'])
+  v=c(cor,rmse,mae)
+  names(v)=c("Rsquare","RMSE","MAE")
+  return(v)
+}
 
 set.seed(4321)
 control=trainControl(method="repeatedcv", number=CVfolds,repeats = CVrepeats,
-                     savePredictions = T,index = indexPreds,returnResamp = "all",verboseIter = TRUE)
+                     savePredictions = T,index = indexPreds,returnResamp = "all",
+                     verboseIter = TRUE,summaryFunction = weight_summary)
 set.seed(4321)
 if(id==1){
   #RF
@@ -152,8 +161,8 @@ if(id==2){
 }
 if(id==3){
   #glmboost
-  nprune=para_list[[id]][in_id,"mstop"]
-  degree=para_list[[id]][in_id,"prune"]
+  mstop=para_list[[id]][in_id,"mstop"]
+  prune=para_list[[id]][in_id,"prune"]
   m.glm=caret::train(
     y=training_data$L_radon,
     x=training_data[,features],
@@ -162,8 +171,8 @@ if(id==3){
     trControl=control,
     method="glmboost",
     tuneGrid=data.frame(
-      .nprune=nprune,
-      .degree=degree
+      .mstop=mstop,
+      .prune=prune
     )
   )
   load(here::here("Data","Medium Data","Tune_Results.RData"))

@@ -116,6 +116,16 @@ zip_ne$Slope=zip_slope[,1]
 zip_elevation=extract(dem_raster,as_Spatial(zip_ne),fun=mean,na.rm=T)
 zip_ne$Elev=zip_elevation[,1]
 
+#calculate distance to fault
+fault<-shapefile("/n/koutrakis_lab/lab/Group_Data/USGS_Geological_Map/US_Faults.shp")
+fault<-spTransform(fault,as.character(st_crs(zip_ne)))
+fault=st_as_sf(fault)
+
+index=st_nearest_feature(x=zip_centroid,y=fault)
+faults=fault[index,]
+dist2fault<- st_distance(x = zip_centroid, y= faults, by_element = TRUE)
+zip_ne$dist2fault=as.numeric(dist2fault)
+
 zip_geo=zip_ne
 zip_geo$geometry=NULL
 save(file=here::here("Data","Medium Data","Rn_Geology.RData"),zip_geo)
