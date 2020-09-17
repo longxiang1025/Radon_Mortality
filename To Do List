@@ -4,4 +4,5 @@
 4.Run an ensemble learning instead of relying on a single model[].
 5.Replace numeric mean with geometric mean [Done].
 6.Add number of units observed as weight in model training [Done].
-7.Create a parameter table/list for base learning method training [].
+7.Create a parameter table/list for base learning method training [Done].
+8.Nerual Network algorithm doesn't work on the original scale of geometric mean. I log transformed it during model training. It should be converted back during prediction.
