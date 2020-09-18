@@ -8,7 +8,7 @@
 8.Nerual Network algorithm doesn't work on the original scale of geometric mean. I log transformed it during model training. It should be converted back during prediction.
 9. Ideas about plot/table:
  9.1: A flowchart of ensemble learning model
- 9.2: Histogram of number of measurements per zipcode
+ 9.2: Histogram of number of measurements per zipcode/ Histogram of observation ratio per zipcode
  9.3: A summary table of radon measurements grouped by State/Season/Year ranges (Geometric mean +/- SD, # of obs, # of zipcodes with > 10 obs)
  9.4: A map of accumulated # of obs in each zipcode, maybe we can calculate the % of buildings measured, so this's a pair of maps (create a table for this as supplementary)
  9.5: A group of maps showing the trends of key predictors (Uranium, Thorium, Building Ages, Percent of Surf_42, Soil porosity, Soil moisture)
