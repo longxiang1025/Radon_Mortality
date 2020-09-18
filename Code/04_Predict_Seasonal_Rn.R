@@ -9,12 +9,20 @@ library(boot)
 library(caret)
 
 report_result<-function(m,obs,w,id,in_id){
-  cv_pred=m$pred%>%group_by(rowIndex)%>%summarise(pred=mean(pred))%>%arrange(rowIndex)
-  result=cbind.data.frame(obs,w,cv_pred)
-  names(result)=c("obs","w","rowIndex","pred")
-  cor_w=corr(result[,c("obs","pred")],w=result$w)
-  rmse_w=sqrt(sum((result$obs-result$pred)^2*result$w)/sum(result$w))
+  #m=m.rf
+  cor_w=m$results$Rsquare
+  rmse_w=m$results$RMSE
   return(cbind.data.frame(id,in_id,cor_w,rmse_w))
+}
+
+weight_summary<-function(data, lev = NULL, model = NULL){
+  #data=data[!is.na(data),]
+  cor=corr(data[,c("obs","pred")],w=data[,"weights"])
+  rmse=sqrt(sum((data[,'obs']-data[,'pred'])^2*data[,'weights'])/sum(data[,'weights']))
+  mae=sum(abs(data[,'obs']-data[,'pred'])*data[,'weights'])/sum(data[,'weights'])
+  v=c(cor,rmse,mae)
+  names(v)=c("Rsquare","RMSE","MAE")
+  return(v)
 }
 
 # #create a parameter table for model tuning
@@ -82,13 +90,14 @@ in_id=para_table[sect_id,"in_id"]
 #radon_obs=radon_obs%>%left_join(zip_season_mete,by=c("Year"="year",
 #                                                     "Season"="Season",
 #                                                     "ZIPCODE"="ZIP"))
-#valid_measurements=ne_radon%>%group_by(Year,Month,ZIPCODE)%>%summarise(mean_Rn=mean(PCI.L),var_Rn=sd(PCI.L),n_obs=n_distinct(FINGERPRINT))
 #save(file=here::here("Data","Medium Data","Valid_Rn_Measurement.RData"),radon_obs)
 load(here::here("Data","Medium Data","Valid_Rn_Measurement.RData"))
 #Try the cutoff as 5 first, if needed, we can use smaller number
-training_data=radon_obs%>%filter(n_units>4)
+training_data=radon_obs%>%filter(n_units>9)
+training_data$dist2fault=as.numeric(training_data$dist2fault)
 training_data=training_data%>%filter(month_Rn>0)
 training_data$L_radon=log10(training_data$month_Rn)
+training_data$gm_month=log(training_data$gm_month)
 training_data=as.data.frame(training_data)
 training_data=na.omit(training_data)
 
@@ -100,15 +109,6 @@ CVrepeats <- 3
 #indexPreds <- createMultiFolds(training_data$month_Rn, k= CVfolds, times=CVrepeats)
 #save(file=here::here("Data","CV_Folds.RData"),indexPreds)
 load(here::here("Data","CV_Folds.RData"))
-weight_summary<-function(data, lev = NULL, model = NULL){
-  cor=corr(data[,c("obs","pred")],w=data[,"weights"])
-  rmse=sqrt(sum((data[,'obs']-data[,'pred'])^2*data[,'weights'])/sum(data[,'weights']))
-  mae=sum(abs(data[,'obs']-data[,'pred'])*data[,'weights'])/sum(data[,'weights'])
-  v=c(cor,rmse,mae)
-  names(v)=c("Rsquare","RMSE","MAE")
-  return(v)
-}
-
 set.seed(4321)
 control=trainControl(method="repeatedcv", number=CVfolds,repeats = CVrepeats,
                      savePredictions = T,index = indexPreds,returnResamp = "all",
@@ -119,7 +119,7 @@ if(id==1){
   mtry=para_list[[id]][in_id,"mtry"]
   min.node.size=para_list[[id]][in_id,"min.nodes"]
   m.rf=caret::train(
-    y=training_data$L_radon,
+    y=training_data$gm_month,
     x=training_data[,features],
     weights=training_data$n_units,
     importance="impurity",
@@ -129,9 +129,9 @@ if(id==1){
     tuneGrid=data.frame(.mtry=mtry,.splitrule="variance",.min.node.size=min.node.size)
   )
   load(here::here("Data","Medium Data","Tune_Results.RData"))
-  tune_table[tune_table$id==id&tune_table$in_id==in_id,]=report_result(m.rf,training_data$L_radon,w=training_data$n_units,
+  tune_table[tune_table$id==id&tune_table$in_id==in_id,]=report_result(m.rf,training_data$gm_month,w=training_data$n_units,
                 id=id,in_id = in_id)
-  print(report_result(m.rf,training_data$L_radon,w=training_data$n_units,
+  print(report_result(m.rf,training_data$gm_month,w=training_data$n_units,
                       id=id,in_id = in_id))
   save(file=here::here("Data","Medium Data","Tune_Results.RData"),tune_table)
 }
@@ -140,22 +140,22 @@ if(id==2){
   size=para_list[[id]][in_id,"size"]
   decay=para_list[[id]][in_id,"decay"]
   m.nn=caret::train(
-    y=training_data$L_radon,
+    y=training_data$gm_month,
     x=training_data[,features],
     weights=training_data$n_units,
     method="nnet",
     metric="RMSE",
-    rang = 100,
-    abstol = 1.0e-8,
-    reltol=1.0e-10,
+    rang = 1,
+    #abstol = 1.0e-10,
+    reltol=1.0e-8,
     maxit=50000,
     trControl=control,
     tuneGrid=data.frame(.size=size,.decay=decay)
   )
   load(here::here("Data","Medium Data","Tune_Results.RData"))
-  tune_table[tune_table$id==id&tune_table$in_id==in_id,]=report_result(m.nn,training_data$L_radon,w=training_data$n_units,
+  tune_table[tune_table$id==id&tune_table$in_id==in_id,]=report_result(m.nn,training_data$gm_month,w=training_data$n_units,
                                                                        id=id,in_id = in_id)
-  print(report_result(m.nn,training_data$L_radon,w=training_data$n_units,
+  print(report_result(m.nn,training_data$gm_month,w=training_data$n_units,
                       id=id,in_id = in_id))
   save(file=here::here("Data","Medium Data","Tune_Results.RData"),tune_table)
 }
@@ -164,7 +164,7 @@ if(id==3){
   mstop=para_list[[id]][in_id,"mstop"]
   prune=para_list[[id]][in_id,"prune"]
   m.glm=caret::train(
-    y=training_data$L_radon,
+    y=training_data$gm_month,
     x=training_data[,features],
     weights=training_data$n_units,
     metric="RMSE",
@@ -176,9 +176,9 @@ if(id==3){
     )
   )
   load(here::here("Data","Medium Data","Tune_Results.RData"))
-  tune_table[tune_table$id==id&tune_table$in_id==in_id,]=report_result(m.glm,training_data$L_radon,w=training_data$n_units,
+  tune_table[tune_table$id==id&tune_table$in_id==in_id,]=report_result(m.glm,training_data$gm_month,w=training_data$n_units,
                                                                        id=id,in_id = in_id)
-  print(report_result(m.glm,training_data$L_radon,w=training_data$n_units,
+  print(report_result(m.glm,training_data$gm_month,w=training_data$n_units,
                       id=id,in_id = in_id))
   save(file=here::here("Data","Medium Data","Tune_Results.RData"),tune_table)
 }
@@ -187,8 +187,8 @@ if(id==4){
   mstop=para_list[[id]][in_id,"mstop"]
   prune=para_list[[id]][in_id,"prune"]
   m.gamboost=caret::train(
-    y=training_data$L_radon,
-    x=training_data[,features],
+    y=training_data$gm_month,
+    x=training_data[,features[c(1:20,22:76)]],
     weights=training_data$n_units,
     metric="RMSE",
     trControl=control,
@@ -199,9 +199,9 @@ if(id==4){
     )
   )
   load(here::here("Data","Medium Data","Tune_Results.RData"))
-  tune_table[tune_table$id==id&tune_table$in_id==in_id,]=report_result(m.gamboost,training_data$L_radon,w=training_data$n_units,
+  tune_table[tune_table$id==id&tune_table$in_id==in_id,]=report_result(m.gamboost,training_data$gm_month,w=training_data$n_units,
                                                                        id=id,in_id = in_id)
-  print(report_result(m.gamboost,training_data$L_radon,w=training_data$n_units,
+  print(report_result(m.gamboost,training_data$gm_month,w=training_data$n_units,
                       id=id,in_id = in_id))
   save(file=here::here("Data","Medium Data","Tune_Results.RData"),tune_table)
 }
@@ -213,7 +213,7 @@ if(id==5){
   shrinkage=para_list[[id]][in_id,"shrinkage"]
   
   m.gbm=caret::train(
-    y=training_data$L_radon,
+    y=training_data$gm_month,
     x=training_data[,features],
     weights=training_data$n_units,
     method="gbm",
@@ -224,9 +224,9 @@ if(id==5){
                         .shrinkage=shrinkage)
   )
   load(here::here("Data","Medium Data","Tune_Results.RData"))
-  tune_table[tune_table$id==id&tune_table$in_id==in_id,]=report_result(m.gbm,training_data$L_radon,w=training_data$n_units,
+  tune_table[tune_table$id==id&tune_table$in_id==in_id,]=report_result(m.gbm,training_data$gm_month,w=training_data$n_units,
                                                                        id=id,in_id = in_id)
-  print(report_result(m.gbm,training_data$L_radon,w=training_data$n_units,
+  print(report_result(m.gbm,training_data$gm_month,w=training_data$n_units,
                       id=id,in_id = in_id))
   save(file=here::here("Data","Medium Data","Tune_Results.RData"),tune_table)
 }
@@ -235,7 +235,7 @@ if(id==6){
   maxdepth=para_list[[id]][in_id,"maxdepth"]
   
   m.cart=caret::train(
-    y=training_data$L_radon,
+    y=training_data$gm_month,
     x=training_data[,features],
     weights=training_data$n_units,
     method="rpart2",
@@ -243,9 +243,9 @@ if(id==6){
     tuneGrid=data.frame(.maxdepth=maxdepth)
   )
   load(here::here("Data","Medium Data","Tune_Results.RData"))
-  tune_table[tune_table$id==id&tune_table$in_id==in_id,]=report_result(m.cart,training_data$L_radon,w=training_data$n_units,
+  tune_table[tune_table$id==id&tune_table$in_id==in_id,]=report_result(m.cart,training_data$gm_month,w=training_data$n_units,
                                                                        id=id,in_id = in_id)
-  print(report_result(m.cart,training_data$L_radon,w=training_data$n_units,
+  print(report_result(m.cart,training_data$gm_month,w=training_data$n_units,
                       id=id,in_id = in_id))
   save(file=here::here("Data","Medium Data","Tune_Results.RData"),tune_table)
 }

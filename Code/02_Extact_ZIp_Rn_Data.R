@@ -94,6 +94,7 @@ trans<-cbind.data.frame(Month=1:12,
 ne_radon=ne_radon%>%left_join(trans)
 ne_radon$Year=lubridate::year(ne_radon$STARTDATE)
 #the number of records in each zipcode
+ne_radon=ne_radon%>%filter(PCI.L>0.04)
 zip_season<-ne_radon%>%
   group_by(Year,Season,ZIPCODE)%>%
   summarise(month_Rn=mean(PCI.L),month_var=sd(PCI.L),
@@ -105,5 +106,6 @@ zip_season<-ne_radon%>%
 # zipcode 02879 located in RI has 149 months, windham has 7 months.
 #zip_summ<-zip_month%>%filter(n>4)%>%group_by(ZIPCODE)%>%count()%>%arrange(desc(n))
 
+save(file = here::here("Data","Medium Data","NE_Rn_Obs.RData"),ne_radon)
 save(file = here::here("Data","Medium Data","NE_Season_Rn.RData"),zip_season)
 
