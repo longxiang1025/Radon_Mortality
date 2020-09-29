@@ -101,6 +101,10 @@ zip_season<-ne_radon%>%
             gm_month=exp(mean(log(PCI.L))),
             n_units=n_distinct(FINGERPRINT),n_obs=length(FINGERPRINT))
 
+zip_month<-ne_radon%>%group_by(Year,Month,ZIPCODE)%>%
+  summarise(month_Rn=mean(PCI.L),month_var=sd(PCI.L),
+            gm_month=exp(mean(log(PCI.L))),
+            n_units=n_distinct(FINGERPRINT),n_obs=length(FINGERPRINT))
 
 # a total of 594 zipcodes have at least one month with over 5 radon measurements
 # zipcode 02879 located in RI has 149 months, windham has 7 months.
@@ -108,4 +112,6 @@ zip_season<-ne_radon%>%
 
 save(file = here::here("Data","Medium Data","NE_Rn_Obs.RData"),ne_radon)
 save(file = here::here("Data","Medium Data","NE_Season_Rn.RData"),zip_season)
+save(file = here::here("Data","Medium Data","NE_Month_Rn.RData"),zip_month)
+
 

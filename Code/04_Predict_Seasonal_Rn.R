@@ -31,7 +31,7 @@ weight_summary<-function(data, lev = NULL, model = NULL){
 # #neural network model: ID=2
 # p2=expand.grid(ID=2,size=seq(5,25,5),decay=c(1e-4,1e-3,1e-2,1e-1))
 # #glmboost : ID=3
-# p3=expand.grid(ID=4,mstop=c(1000,2000,5000,10000,20000), prune=seq(1,5))
+# p3=expand.grid(ID=3,mstop=c(1000,2000,5000,10000,20000), prune=seq(1,5))
 # #GAM boost: ID=4
 # p4=expand.grid(ID=4,mstop=c(1000,2000,5000,10000,20000), prune=seq(1,5))
 # #Gradient Boosting Machine: ID=5
@@ -60,13 +60,13 @@ load(here::here("Data","Medium Data","ParaTable.RData"))
 load(here::here("Data","Medium Data","Tune_Results.RData"))
 # load(here::here("Data","Medium Data","Monthly_Mete.RData"))
 # load(here::here("Data","Medium Data","Rn_Geology.RData"))
-# load(here::here("Data","Medium Data","NE_Season_Rn.RData"))
+# load(here::here("Data","Medium Data","NE_Month_Rn.RData"))
 # load(here::here("Data","Medium Data","ZIP_Housing.RData"))
 
 id=para_table[sect_id,"id"]
 in_id=para_table[sect_id,"in_id"]
 
-#zip_season_rn=zip_season
+#zip_month_rn=zip_month
 
 #zip_mete_record=zip_mete_record%>%mutate(Season= cut(x=month,breaks=c(0,2,6,9,11,12),labels=c("Winter","Spring","Summer","Autumn","Winter")))
 #zip_season_mete=zip_mete_record%>%group_by(ZIP,year,Season)%>%summarise(
@@ -83,17 +83,15 @@ in_id=para_table[sect_id,"in_id"]
 #)
 
 
-#radon_obs=zip_season_rn%>%left_join(zip_geo,by=c("ZIPCODE"="ZIP"))
+#radon_obs=zip_month_rn%>%left_join(zip_geo,by=c("ZIPCODE"="ZIP"))
 #radon_obs=radon_obs%>%left_join(zips_house,by=c("ZIPCODE"="ZIP"))
-#radon_obs$Season=as.character(radon_obs$Season)
-#radon_obs[radon_obs$Season=="Autum","Season"]="Autumn"
-#radon_obs=radon_obs%>%left_join(zip_season_mete,by=c("Year"="year",
-#                                                     "Season"="Season",
-#                                                     "ZIPCODE"="ZIP"))
+#radon_obs=radon_obs%>%left_join(zip_mete_record,by=c("Year"="year",
+#                                                    "Month"="month",
+#                                                    "ZIPCODE"="ZIP"))
 #save(file=here::here("Data","Medium Data","Valid_Rn_Measurement.RData"),radon_obs)
 load(here::here("Data","Medium Data","Valid_Rn_Measurement.RData"))
 #Try the cutoff as 5 first, if needed, we can use smaller number
-training_data=radon_obs%>%filter(n_units>9)
+training_data=radon_obs%>%filter(n_units>4)
 training_data$dist2fault=as.numeric(training_data$dist2fault)
 training_data=training_data%>%filter(month_Rn>0)
 training_data$L_radon=log10(training_data$month_Rn)
@@ -101,11 +99,11 @@ training_data$gm_month=log(training_data$gm_month)
 training_data=as.data.frame(training_data)
 training_data=na.omit(training_data)
 
-features=names(training_data)[c(1,14:88)]
+features=names(training_data)[c(1:2,14:89)]
 CVfolds <- 10
 CVrepeats <- 3
 
-#set.seed(42)
+#set.seed(4321)
 #indexPreds <- createMultiFolds(training_data$month_Rn, k= CVfolds, times=CVrepeats)
 #save(file=here::here("Data","CV_Folds.RData"),indexPreds)
 load(here::here("Data","CV_Folds.RData"))

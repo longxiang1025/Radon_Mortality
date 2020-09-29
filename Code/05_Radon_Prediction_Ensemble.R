@@ -10,13 +10,15 @@ library(sf)
 
 load(here::here("Data","Medium Data","Valid_Rn_Measurement.RData"))
 #Try the cutoff as 5 first, if needed, we can use smaller number
-training_data=radon_obs%>%filter(n_units>4)
+training_data=radon_obs%>%filter(n_units>9)
 training_data=training_data%>%filter(month_Rn>0)
 training_data$L_radon=log10(training_data$month_Rn)
+training_data$gm_month=log(training_data$gm_month)
 training_data=as.data.frame(training_data)
 training_data=na.omit(training_data)
+training_data$dist2fault=as.numeric(training_data$dist2fault)
 
-features=names(training_data)[c(1,13:31,33:86)]
+features=names(training_data)[c(1,14:88)]
 CVfolds <- 10
 CVrepeats <- 3
 
@@ -40,91 +42,90 @@ control=trainControl(method="repeatedcv", number=CVfolds,repeats = CVrepeats,
 set.seed(4321)
 ##----------------Train individual models---------------------------------------
 # m.rf=caret::train(
-#   y=training_data$L_radon,
+#   y=training_data$gm_month,
 #   x=training_data[,features],
 #   weights=training_data$n_units,
 #   importance="impurity",
 #   method="ranger",
 #   metric="RMSE",
 #   trControl=control,
-#   tuneGrid=data.frame(.mtry=40,.splitrule="variance",.min.node.size=3)
+#   tuneGrid=data.frame(.mtry=25,.splitrule="variance",.min.node.size=5)
 # )
 # save(file=here::here("Data","Medium Data","Model_List","m_rf.RData"),m.rf)
 # 
 # m.nn=m.nn=caret::train(
-#   y=training_data$L_radon,
+#   y=training_data$gm_month,
 #   x=training_data[,features],
 #   weights=training_data$n_units,
 #   method="nnet",
 #   metric="RMSE",
-#   rang = 100,
-#   abstol = 1.0e-8,
-#   reltol=1.0e-10,
+#   rang = 1,
+#   reltol=1.0e-8,
 #   maxit=50000,
 #   trControl=control,
-#   tuneGrid=data.frame(.size=10,.decay=0.01)
+#   tuneGrid=data.frame(.size=10,.decay=0.1)
 # )
 # save(file=here::here("Data","Medium Data","Model_List","m_nn.RData"),m.nn)
-# 
+
 # m.glm=caret::train(
-#   y=training_data$L_radon,
+#   y=training_data$gm_month,
 #   x=training_data[,features],
 #   weights=training_data$n_units,
 #   metric="RMSE",
 #   trControl=control,
 #   method="glmboost",
 #   tuneGrid=data.frame(
-#     .mstop=1000,
+#     .mstop=20000,
 #     .prune=1
 #   )
 # )
 # save(file=here::here("Data","Medium Data","Model_List","m_glm.RData"),m.glm)
-# 
-# m.gamboost=caret::train(
-#   y=training_data$L_radon,
-#   x=training_data[,features],
-#   weights=training_data$n_units,
-#   metric="RMSE",
-#   trControl=control,
-#   method="gamboost",
-#   tuneGrid=data.frame(
-#     .mstop=10000,
-#     .prune=1
-#   )
-# )
-# save(file=here::here("Data","Medium Data","Model_List","m_gam.RData"),m.gamboost)
-# 
-# m.gbm=caret::train(
-#   y=training_data$L_radon,
-#   x=training_data[,features],
-#   weights=training_data$n_units,
-#   method="gbm",
-#   trControl=control,
-#   tuneGrid=data.frame(.n.trees=100,
-#                       .interaction.depth=10,
-#                       .n.minobsinnode=5,
-#                       .shrinkage=0.1)
-# )
-# save(file=here::here("Data","Medium Data","Model_List","m_gbm.RData"),m.gbm)
-# 
-# m.cart=caret::train(
-#   y=training_data$L_radon,
-#   x=training_data[,features],
-#   weights=training_data$n_units,
-#   method="rpart2",
-#   trControl=control,
-#   tuneGrid=data.frame(.maxdepth=5)
-# )
-# save(file=here::here("Data","Medium Data","Model_List","m_cart.RData"),m.cart)
-# 
-# m.bglm=caret::train(
-#   y=training_data$L_radon,
-#   x=training_data[,features],
-#   method="bayesglm",
-#   preProcess = "scale",
-#   trControl=control)
-# 
-# save(file=here::here("Data","Medium Data","Model_List","m_bglm.RData"),m.bglm)
+
+m.gamboost=caret::train(
+  y=training_data$gm_month,
+  x=training_data[,features[c(1:20,22:76)]],
+  weights=training_data$n_units,
+  metric="RMSE",
+  trControl=control,
+  method="gamboost",
+  tuneGrid=data.frame(
+    .mstop=20000,
+    .prune=1
+  )
+)
+save(file=here::here("Data","Medium Data","Model_List","m_gam.RData"),m.gamboost)
+
+m.gbm=caret::train(
+  y=training_data$gm_month,
+  x=training_data[,features],
+  weights=training_data$n_units,
+  method="gbm",
+  trControl=control,
+  tuneGrid=data.frame(.n.trees=700,
+                      .interaction.depth=5,
+                      .n.minobsinnode=5,
+                      .shrinkage=0.05)
+)
+save(file=here::here("Data","Medium Data","Model_List","m_gbm.RData"),m.gbm)
+
+m.cart=caret::train(
+  y=training_data$gm_month,
+  x=training_data[,features],
+  weights=training_data$n_units,
+  method="rpart2",
+  trControl=control,
+  tuneGrid=data.frame(.maxdepth=10)
+)
+save(file=here::here("Data","Medium Data","Model_List","m_cart.RData"),m.cart)
+
+m.bglm=caret::train(
+  y=training_data$gm_month,
+  x=training_data[,features],
+  method="bayesglm",
+  preProcess = "scale",
+  trControl=control)
+
+save(file=here::here("Data","Medium Data","Model_List","m_bglm.RData"),m.bglm)
 ##----------------Load individual models-------------------------------
 model_files<-list.files(here::here("Data","Medium Data","Model_List"),full.names = T)
 for( f in model_files){
