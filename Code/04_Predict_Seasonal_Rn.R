@@ -122,7 +122,7 @@ if(id==1){
     weights=training_data$n_units,
     importance="impurity",
     method="ranger",
-    metric="RMSE",
+    metric="Rsquare",
     trControl=control,
     tuneGrid=data.frame(.mtry=mtry,.splitrule="variance",.min.node.size=min.node.size)
   )
@@ -142,7 +142,7 @@ if(id==2){
     x=training_data[,features],
     weights=training_data$n_units,
     method="nnet",
-    metric="RMSE",
+    metric="Rsquare",
     rang = 1,
     #abstol = 1.0e-10,
     reltol=1.0e-8,
@@ -165,7 +165,7 @@ if(id==3){
     y=training_data$gm_month,
     x=training_data[,features],
     weights=training_data$n_units,
-    metric="RMSE",
+    metric="Rsquare",
     trControl=control,
     method="glmboost",
     tuneGrid=data.frame(
@@ -186,9 +186,9 @@ if(id==4){
   prune=para_list[[id]][in_id,"prune"]
   m.gamboost=caret::train(
     y=training_data$gm_month,
-    x=training_data[,features[c(1:20,22:76)]],
+    x=training_data[,features[c(1:21,23:76)]],
     weights=training_data$n_units,
-    metric="RMSE",
+    metric="Rsquare",
     trControl=control,
     method="gamboost",
     tuneGrid=data.frame(
@@ -215,6 +215,7 @@ if(id==5){
     x=training_data[,features],
     weights=training_data$n_units,
     method="gbm",
+    metric="Rsquare",
     trControl=control,
     tuneGrid=data.frame(.n.trees=n.trees,
                         .interaction.depth=interaction.depth,
@@ -237,6 +238,7 @@ if(id==6){
     x=training_data[,features],
     weights=training_data$n_units,
     method="rpart2",
+    metric="Rsquare",
     trControl=control,
     tuneGrid=data.frame(.maxdepth=maxdepth)
   )

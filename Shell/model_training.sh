@@ -1,7 +1,5 @@
 #!/bin/bash
-#SBATCH -p gpu_requeue
-#SBATCH --test-only
-#SBATCH --gres=gpu:1
+#SBATCH -p shared
 #SBATCH -n 1
 #SBATCH --mem=18000
 #SBATCH -t 1280
