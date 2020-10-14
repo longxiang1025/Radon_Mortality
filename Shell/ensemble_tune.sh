@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH -p serial_requeue
+#SBATCH -p shared
 #SBATCH -n 1
 #SBATCH --mem=18000
 #SBATCH -t 1280
@@ -13,6 +13,6 @@ Sim=${SLURM_ARRAY_TASK_ID}
 
 export Sim
 
-Rscript --quiet --no-restore --no-save /n/koutrakis_lab/lab/Radon_Mortality/Code/06_Radon_Prediction_Ensemble.RData
+Rscript --quiet --no-restore --no-save /n/koutrakis_lab/lab/Radon_Mortality/Code/06_Radon_Prediction_Ensemble.R
 
 sleep 3 # pause to be kind to the scheduler

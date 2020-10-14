@@ -60,15 +60,23 @@ id=para_table[sect_id,"id"]
 in_id=para_table[sect_id,"in_id"]
 
 load(here::here("Data","Medium Data","Valid_Rn_Measurement.RData"))
+load(here::here("Data","Medium Data","Lag_Rn.RData"))
+load(here::here("Data","Medium Data","zipcode_coords.RData"))
+
 #Try the cutoff as 5 first, if needed, we can use smaller number
 training_data=radon_month_obs
+training_data$timestamp=12*(training_data$Year-1990)+training_data$Month
+training_data=training_data%>%filter(Year>2004,Year<2019)
 training_data=training_data%>%filter(n_units>4)
 training_data$dist2fault=as.numeric(training_data$dist2fault)
 training_data$gm_month=log(training_data$gm_month)
 training_data=as.data.frame(training_data)
+training_data=training_data%>%left_join(zip_coord,by=c("ZIPCODE"="ZIPCODE"))
+training_data=training_data%>%left_join(zipcode_rn_lag,by=c("ZIPCODE"="zipcode",
+                                                            "timestamp"="timestamp"))
 training_data=na.omit(training_data)
 
-features=names(training_data)[c(1:2,8,18:90)]
+features=names(training_data)[c(1:2,15:16,18:94)]
 CVfolds <- 10
 CVrepeats <- 3
 #set.seed(4321)
@@ -96,6 +104,8 @@ if(id==1){
     method="ranger",
     metric="Rsquare",
     num.trees=num.trees,
+    sample.fraction=0.5,
+    replace=F,
     max.depth=max.depth,
     trControl=control,
     tuneGrid=data.frame(.mtry=mtry,.splitrule=splitrule,.min.node.size=min.node.size)
@@ -142,7 +152,7 @@ if(id==4){
   prune=1
   m=caret::train(
     y=training_data$gm_month,
-    x=training_data[,features[c(1:20,22:76)]],
+    x=training_data[,features[c(1:21,23:79)]],
     weights=training_data$n_units,
     metric="Rsquare",
     trControl=control,

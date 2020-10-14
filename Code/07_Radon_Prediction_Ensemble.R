@@ -1,6 +1,6 @@
 sect_id<-as.numeric(Sys.getenv("Sim"))
-#lamda=c(1e-5,1e-4,1e-3,2e-3,3e-3,4e-3,5e-3,1e-2,2e-2,5e-2)
-#bandwidth=c(50,60,70,80,100,120,150,200,250,300)
+#lamda=c(1e-5,1e-4,1e-3,1e-2,5e-2,0.1,0.2,0.3,0.4,0.5)
+#bandwidth=c(100,200,300,500,750,100)
 #parameters=expand.grid(lamda,bandwidth)
 #names(parameters)=c("lamda","bandwidth")
 #parameters$R2=0
@@ -35,17 +35,21 @@ ti.distv=function (focal.t, obs.tv, units = "auto")
 assignInNamespace("ti.distv",ti.distv,"GWmodel")
 
 source(here::here("Code","00_GTWR_NNLS_Function.R"))
-
-load(here::here("Data","Medium Data","ParaList.RData"))
-load(here::here("Data","Medium Data","ParaTable.RData"))
-
 load(here::here("Data","Medium Data","Valid_Rn_Measurement.RData"))
+load(here::here("Data","Medium Data","Lag_Rn.RData"))
+load(here::here("Data","Medium Data","zipcode_coords.RData"))
+projstring="+proj=aea +lat_1=20 +lat_2=60 +lat_0=23 +lon_0=-96 +x_0=0 +y_0=0 +ellps=GRS80 +datum=WGS84 +units=m +no_defs +towgs84=0,0,0"
 #Try the cutoff as 5 first, if needed, we can use smaller number
 training_data=radon_month_obs
+training_data$timestamp=12*(training_data$Year-1990)+training_data$Month
+training_data=training_data%>%filter(Year>2004,Year<2019)
 training_data=training_data%>%filter(n_units>4)
 training_data$dist2fault=as.numeric(training_data$dist2fault)
 training_data$gm_month=log(training_data$gm_month)
 training_data=as.data.frame(training_data)
+training_data=training_data%>%left_join(zip_coord,by=c("ZIPCODE"="ZIPCODE"))
+training_data=training_data%>%left_join(zipcode_rn_lag,by=c("ZIPCODE"="zipcode",
+                                                            "timestamp"="timestamp"))
 training_data=na.omit(training_data)
 CVfolds <- 10
 CVrepeats <- 3
@@ -73,69 +77,69 @@ control=trainControl(method="repeatedcv", number=CVfolds,repeats = CVrepeats,
 set.seed(4321)
 ##----------------Local performance of each base model------------
 #m_files=list.files(here::here("Data","Medium Data","Model_List"))
-#base_results=list()
-# l=1
-# for(f in m_files){
-#   load(here::here("Data","Medium Data","Model_List",f))
-#   in_pred=predict(m,training_data)
-#   temp_df=cbind.data.frame(in_pred,training_data$gm_month,training_data$n_units)
-#   names(temp_df)=c("Pred","Obs","w")
-#   temp_df=temp_df[!is.na(temp_df$Pred),]
-#   R2=corr(temp_df[,c("Pred","Obs")],temp_df$w)
-#   CV_R2=m$results$Rsquare
-#   Type=m$modelInfo[[1]]
-#   r_info=cbind.data.frame(Type,f,R2,CV_R2)
-#   base_results[[l]]=r_info
-#   print(r_info)
-#   l=l+1
-# }
-# base_results=bind_rows(base_results)
+base_results=list()
+l=1
+for(f in m_files){
+  load(here::here("Data","Medium Data","Model_List",f))
+  in_pred=predict(m)
+  temp_df=cbind.data.frame(in_pred,training_data$gm_month,training_data$n_units)
+  names(temp_df)=c("Pred","Obs","w")
+  temp_df=temp_df[!is.na(temp_df$Pred),]
+  R2=corr(temp_df[,c("Pred","Obs")],temp_df$w)
+  CV_R2=m$results$Rsquare
+  Type=m$modelInfo[[1]]
+  r_info=cbind.data.frame(Type,f,R2,CV_R2)
+  base_results[[l]]=r_info
+  print(r_info)
+  l=l+1
+}
+base_results=bind_rows(base_results)
 # save(file=here::here("Data","Medium Data","Base_Model_Results.RData"),base_results)
 ##----------------Select base models based on the performance and diversity------------
 #load(here::here("Data","Medium Data","Base_Model_Results.RData"))
 ##The top-level list containing base models of all type
-# base_models=list()
-# b_label=1
-# for(t in unique(base_results$Type)){
-#   ##t mean type, it iterate through all five classes of base models
-#   bases=base_results%>%filter(Type==t)
-#   bases=bases%>%arrange(desc(CV_R2))
-#   base_tank=list()
-#   base_pred=list()
-#   load(here::here("Data","Medium Data","Model_List",as.character(bases[1,"f"])))
-#   base_tank[[1]]=m
-#   pred=predict(base_tank[[1]],training_data)
-#   base_pred[[1]]=pred
-#   l=2
-#   for(b_t in 2:nrow(bases)){
-#     load(here::here("Data","Medium Data","Model_List",as.character(bases[b_t,"f"])))
-#     pred=predict(m,training_data)
-#     ##calculate the max R2 with selected models, if R2 is <0.9, add the new model in the list
-#     r=0
-#     for(b in 1:length(base_pred)){
-#       r0=cor(pred,base_pred[[b]],use="complete.obs")
-#       if(r0>r){
-#         r=r0
-#       }
-#     }
-#     if(r<0.949){
-#       print(paste("#",t,b_t,format(r,digits=4),as.character(bases[b_t,"f"]),"is used"))
-#       base_tank[[l]]=m
-#       base_pred[[l]]=pred
-#       l=l+1
-#     }
-#     else{
-#       print(paste("#",t,b_t,format(r,digits=4),as.character(bases[b_t,"f"]),"is very similar with top model(s)"))
-#     }
-#     if(l==4){
-#         break()
-#     }
-#   }
-#   for(temp in 1:length(base_tank)){
-#     base_models[[b_label]]=base_tank[[temp]]
-#     b_label=b_label+1
-#   }
-# }
+base_models=list()
+b_label=1
+for(t in unique(base_results$Type)){
+  ##t mean type, it iterate through all five classes of base models
+  bases=base_results%>%filter(Type==t)
+  bases=bases%>%arrange(desc(CV_R2))
+  base_tank=list()
+  base_pred=list()
+  load(here::here("Data","Medium Data","Model_List",as.character(bases[1,"f"])))
+  base_tank[[1]]=m
+  pred=predict(base_tank[[1]],training_data)
+  base_pred[[1]]=pred
+  l=2
+  for(b_t in 2:nrow(bases)){
+    load(here::here("Data","Medium Data","Model_List",as.character(bases[b_t,"f"])))
+    pred=predict(m,training_data)
+    ##calculate the max R2 with selected models, if R2 is <0.9, add the new model in the list
+    r=0
+    for(b in 1:length(base_pred)){
+      r0=cor(pred,base_pred[[b]],use="complete.obs")
+      if(r0>r){
+        r=r0
+      }
+    }
+    if(r<0.949){
+      print(paste("#",t,b_t,format(r,digits=4),as.character(bases[b_t,"f"]),"is used"))
+      base_tank[[l]]=m
+      base_pred[[l]]=pred
+      l=l+1
+    }
+    else{
+      print(paste("#",t,b_t,format(r,digits=4),as.character(bases[b_t,"f"]),"is very similar with top model(s)"))
+    }
+    if(l==4){
+        break()
+    }
+  }
+  for(temp in 1:length(base_tank)){
+    base_models[[b_label]]=base_tank[[temp]]
+    b_label=b_label+1
+  }
+}
 # save(file=here::here("Data","Medium Data","Selected_Base_Models.RData"),base_models)
 ##----------------Build the final model--------------------------------------------
 
@@ -162,7 +166,7 @@ m_preds$weights=m_cv_pred$weights
 load(here::here("Data","GeoData","2015_Shapes.RData"))
 zip_ne=zips[zips$STATE%in%c("MA","NH","CT","RI","VT","ME"),]
 zip_ne=st_as_sf(zip_ne)
-zip_ne=st_transform(zip_ne,crs=proj)
+zip_ne=st_transform(zip_ne,crs=projstring)
 zip_centroid=st_centroid(zip_ne)
 zip_coord=cbind.data.frame(zip_centroid$ZIP,st_coordinates(zip_centroid))
 names(zip_coord)=c("ZIPCODE","X","Y")
@@ -172,8 +176,8 @@ training_data$timestamp=12*(training_data$Year-1990)+training_data$Month
 
 dist_matrix=st.dist(dp.locat = as.matrix(training_data[,c("X","Y")]),
                     rp.locat = as.matrix(training_data[,c("X","Y")]),
-                    obs.tv =training_data$timestamp,
-                    reg.tv =training_data$timestamp,
+                    obs.tv =training_data$Month,
+                    reg.tv =training_data$Month,
                     lamda = lamda)
 
 ens_m<-gtwr_s(obs=m_preds,
@@ -192,6 +196,8 @@ pred=pred_base*coefs
 pred=rowSums(pred)
 
 m_preds$ens_pred=pred
-parameter[sect_id,"R2"]=corr(m_preds[,c("ens_pred","obs")],w=m_preds$weights)
+load(here::here("Data","Medium Data","Ensemble_Tune_Result.RData"))
+parameters[sect_id,"R2"]=corr(m_preds[,c("ens_pred","obs")],w=m_preds$weights)
+print(parameters[sect_id,"R2"])
 save(file=here::here("Data","Medium Data","Ensemble_Tune_Result.RData"),parameters)
 

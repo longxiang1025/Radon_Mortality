@@ -66,9 +66,9 @@ ma_lab_data$Year=lubridate::year(ma_lab_data$StartDate)
 pa_lab_data$Year=lubridate::year(pa_lab_data$StartDate)
 nc_lab_data$Year=lubridate::year(nc_lab_data$STARTDATE)
 
-ma_lab_data=ma_lab_data%>%filter(Year>1990,Year<2019)
-pa_lab_data=pa_lab_data%>%filter(Year>1990,Year<2019)
-nc_lab_data=nc_lab_data%>%filter(Year>1990,Year<2019)
+ma_lab_data=ma_lab_data%>%filter(Year>2003,Year<2020)
+pa_lab_data=pa_lab_data%>%filter(Year>2003,Year<2020)
+nc_lab_data=nc_lab_data%>%filter(Year>2003,Year<2020)
 #select the basement measurments
 nc_lab_data<-nc_lab_data%>%filter(FLOOR%in%c("basement","unknown"))
 ma_lab_data<-ma_lab_data%>%filter(Floor%in%c("Basement","Unknown"))
