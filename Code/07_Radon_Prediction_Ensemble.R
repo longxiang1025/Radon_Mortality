@@ -76,7 +76,7 @@ control=trainControl(method="repeatedcv", number=CVfolds,repeats = CVrepeats,
                      summaryFunction = weight_summary)
 set.seed(4321)
 ##----------------Local performance of each base model------------
-#m_files=list.files(here::here("Data","Medium Data","Model_List"))
+m_files=list.files(here::here("Data","Medium Data","Model_List"))
 base_results=list()
 l=1
 for(f in m_files){
@@ -94,13 +94,14 @@ for(f in m_files){
   l=l+1
 }
 base_results=bind_rows(base_results)
-# save(file=here::here("Data","Medium Data","Base_Model_Results.RData"),base_results)
+save(file=here::here("Data","Medium Data","Base_Model_Results.RData"),base_results)
 ##----------------Select base models based on the performance and diversity------------
 #load(here::here("Data","Medium Data","Base_Model_Results.RData"))
 ##The top-level list containing base models of all type
 base_models=list()
 b_label=1
-for(t in unique(base_results$Type)){
+for(t in c("Random Forest","Boosted Generalized Linear Model",
+           "Boosted Generalized Additive Model","Stochastic Gradient Boosting")){
   ##t mean type, it iterate through all five classes of base models
   bases=base_results%>%filter(Type==t)
   bases=bases%>%arrange(desc(CV_R2))

@@ -18,20 +18,20 @@ report_result<-function(m,obs,w,id,in_id){
 }
 
 weight_summary<-function(data, lev = NULL, model = NULL){
-  #data=data[!is.na(data),]
+  data=data[!is.na(data$pred),]
+  data=data[!is.na(data$weights),]
+  data$weights=data$weights/sum(data$weights)
   cor=corr(data[,c("obs","pred")],w=data[,"weights"])
-  cor2=corr(data[,c("obs","pred")],w=data[,"weights"]^2)
-  cor3=corr(data[,c("obs","pred")],w=sqrt(data[,"weights"]))
-  rmse=sqrt(sum((data[,'obs']-data[,'pred'])^2*data[,'weights'])/sum(data[,'weights']))
-  mae=sum(abs(data[,'obs']-data[,'pred'])*data[,'weights'])/sum(data[,'weights'])
-  v=c(cor,cor2,cor3,rmse,mae)
-  names(v)=c("Rsquare","Rsquare2","RsquareH","RMSE","MAE")
+  #cor2=corr(data[,c("obs","pred")],w=data[,"weights"]^2)
+  #cor3=corr(data[,c("obs","pred")],w=sqrt(data[,"weights"]))
+  v=c(cor)
+  names(v)=c("Rsquare")
   return(v)
 }
 # #create a parameter table for model tuning
 # #random forest model: ID=1
-# p1=expand.grid(ID=1,num.trees=c(100,200,500,1000),max.depth = c(10,15,25,30),
-#                mtry=c(20,40,60),min.nodes=c(1,2,5,10,20),splitrule=c("variance","extratrees"))
+# p1=expand.grid(ID=1,num.trees=c(10,20,30,40,50),max.depth = c(5,10,15,20),
+#                mtry=c(10,20,40,60),min.nodes=c(1,2,5,10),splitrule=c("variance","extratrees"))
 # #neural network model: ID=2
 # p2=expand.grid(ID=2,size=seq(4,30,2),decay=c(1e-4,1e-3,1e-2,1e-1))
 # #glmboost : ID=3
@@ -49,7 +49,7 @@ weight_summary<-function(data, lev = NULL, model = NULL){
 # in_id=c(seq(1,t_length[1]),seq(1,t_length[2]),
 #         seq(1,t_length[3]),seq(1,t_length[4]),seq(1,t_length[5]))
 # para_table=cbind.data.frame(id,in_id)
-# #a total of 748 parameter sets are tested
+# #a total of 908 parameter sets are tested
  
 # save(file=here::here("Data","Medium Data","ParaList.RData"),para_list)
 # save(file=here::here("Data","Medium Data","ParaTable.RData"),para_table)
@@ -97,14 +97,14 @@ if(id==1){
   min.node.size=para_list[[id]][in_id,"min.nodes"]
   splitrule=para_list[[id]][in_id,"splitrule"]
   m=caret::train(
-    y=training_data$gm_month,
+    y=training_data$gm_month/100,
     x=training_data[,features],
     weights=training_data$n_units,
     importance="impurity",
     method="ranger",
     metric="Rsquare",
     num.trees=num.trees,
-    sample.fraction=0.5,
+    sample.fraction=0.25,
     replace=F,
     max.depth=max.depth,
     trControl=control,
@@ -116,7 +116,7 @@ if(id==2){
   size=para_list[[id]][in_id,"size"]
   decay=para_list[[id]][in_id,"decay"]
   m=caret::train(
-    y=training_data$gm_month,
+    y=training_data$gm_month/100,
     x=training_data[,features],
     weights=training_data$n_units,
     method="nnet",
@@ -124,7 +124,7 @@ if(id==2){
     rang = 1,
     #abstol = 1.0e-10,
     reltol=1.0e-8,
-    maxit=50000,
+    maxit=5000,
     trControl=control,
     tuneGrid=data.frame(.size=size,.decay=decay)
   )
@@ -152,7 +152,7 @@ if(id==4){
   prune=1
   m=caret::train(
     y=training_data$gm_month,
-    x=training_data[,features[c(1:21,23:79)]],
+    x=training_data[,features[c(1:21,23:81)]],
     weights=training_data$n_units,
     metric="Rsquare",
     trControl=control,
