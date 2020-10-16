@@ -30,29 +30,31 @@ weight_summary<-function(data, lev = NULL, model = NULL){
 }
 # #create a parameter table for model tuning
 # #random forest model: ID=1
-# p1=expand.grid(ID=1,num.trees=c(10,20,30,40,50),max.depth = c(5,10,15,20),
-#                mtry=c(10,20,40,60),min.nodes=c(1,2,5,10),splitrule=c("variance","extratrees"))
+#p1=expand.grid(ID=1,num.trees=c(20,30,40,50),max.depth = c(5,10,15,20),
+#               mtry=c(10,20,40,60),min.nodes=c(1,2,5),splitrule=c("variance","extratrees"))
 # #neural network model: ID=2
-# p2=expand.grid(ID=2,size=seq(4,30,2),decay=c(1e-4,1e-3,1e-2,1e-1))
+#p2=expand.grid(ID=2,size=seq(4,30,2),decay=c(1e-4,1e-3,1e-2,1e-1))
 # #glmboost : ID=3
-# p3=expand.grid(ID=3,mstop=c(50,100,200,500,750,1000,1250,1500,1750,2000,2500,3000,3500,4000,4500,5000))
+#p3=expand.grid(ID=3,mstop=c(50,100,200,500,750,1000,1250,1500,1750,2000,2500,3000,3500,4000,4500,5000))
 # #GAM boost: ID=4
-# p4=expand.grid(ID=4,mstop=c(50,100,200,500,750,1000,1250,1500,1750,2000,2500,3000,3500,4000,4500,5000))
+#p4=expand.grid(ID=4,mstop=c(50,100,200,500,750,1000,1250,1500,1750,2000,2500,3000,3500,4000,4500,5000))
 # #Gradient Boosting Machine: ID=5
-# p5=expand.grid(ID=5,n.trees=c(100,200,500,1000), interaction.depth=seq(5,25,5),
+#p5=expand.grid(ID=5,n.trees=c(100,200,500,1000), interaction.depth=seq(5,25,5),
 #               n.minobsinnode=c(3,5,10),shrinkage=c(0.01,0.05,0.1))
+# #Robust linear regression
+#p6=expand.grid(ID=6,intercept=seq(-0.1,0.1,0.01),psi=c("psi.huber","psi.hampel","psi.bisquare"))
 
-# para_list=list(p1,p2,p3,p4,p5)
-# t_length=simplify2array(lapply(para_list,nrow))
-# id=c(rep(1,t_length[1]),rep(2,t_length[2]),
-#      rep(3,t_length[3]),rep(4,t_length[4]),rep(5,t_length[5]))
-# in_id=c(seq(1,t_length[1]),seq(1,t_length[2]),
-#         seq(1,t_length[3]),seq(1,t_length[4]),seq(1,t_length[5]))
-# para_table=cbind.data.frame(id,in_id)
-# #a total of 908 parameter sets are tested
- 
-# save(file=here::here("Data","Medium Data","ParaList.RData"),para_list)
-# save(file=here::here("Data","Medium Data","ParaTable.RData"),para_table)
+#para_list=list(p1,p2,p3,p4,p5,p6)
+#t_length=simplify2array(lapply(para_list,nrow))
+#id=c(rep(1,t_length[1]),rep(2,t_length[2]),
+#     rep(3,t_length[3]),rep(4,t_length[4]),rep(5,t_length[5]),rep(6,t_length[6]))
+#in_id=c(seq(1,t_length[1]),seq(1,t_length[2]),
+#        seq(1,t_length[3]),seq(1,t_length[4]),seq(1,t_length[5]),seq(1,t_length[6]))
+#para_table=cbind.data.frame(id,in_id)
+# #a total of 715 parameter sets are tested
+
+#save(file=here::here("Data","Medium Data","ParaList.RData"),para_list)
+#save(file=here::here("Data","Medium Data","ParaTable.RData"),para_table)
 
 load(here::here("Data","Medium Data","ParaList.RData"))
 load(here::here("Data","Medium Data","ParaTable.RData"))
@@ -97,14 +99,14 @@ if(id==1){
   min.node.size=para_list[[id]][in_id,"min.nodes"]
   splitrule=para_list[[id]][in_id,"splitrule"]
   m=caret::train(
-    y=training_data$gm_month/100,
+    y=training_data$gm_month,
     x=training_data[,features],
     weights=training_data$n_units,
     importance="impurity",
     method="ranger",
     metric="Rsquare",
     num.trees=num.trees,
-    sample.fraction=0.25,
+    sample.fraction=0.35,
     replace=F,
     max.depth=max.depth,
     trControl=control,
@@ -115,11 +117,12 @@ if(id==2){
   #NN
   size=para_list[[id]][in_id,"size"]
   decay=para_list[[id]][in_id,"decay"]
+  #bag=para_list[[id]][in_id,"bag"]
   m=caret::train(
     y=training_data$gm_month/100,
     x=training_data[,features],
     weights=training_data$n_units,
-    method="nnet",
+    method="pcaNNet",
     metric="Rsquare",
     rang = 1,
     #abstol = 1.0e-10,
@@ -183,5 +186,21 @@ if(id==5){
                         .shrinkage=shrinkage)
   )
 }
-
+if(id==6){
+  #robust linear regression
+  intercept=para_list[[id]][in_id,"intercept"]
+  psi=para_list[[id]][in_id,"psi"]
+  m=caret::train(
+    y=training_data$gm_month,
+    x=training_data[,features[c(1:13,15:45,47:54,56:60,62:77,79:81)]],
+    weights=training_data$n_units,
+    metric="Rsquare",
+    trControl=control,
+    method="rlm",
+    tuneGrid=data.frame(
+      .intercept=intercept,
+      .psi=psi
+    )
+  )
+}
 save(file=here::here("Data","Medium Data","Model_List",paste0(sect_id,"_Model.RData")),m)

@@ -13,6 +13,6 @@ Sim=${SLURM_ARRAY_TASK_ID}
 
 export Sim
 
-Rscript --quiet --no-restore --no-save /n/koutrakis_lab/lab/Radon_Mortality/Code/06_Radon_Prediction_Ensemble.R
+Rscript --quiet --no-restore --no-save /n/koutrakis_lab/lab/Radon_Mortality/Code/07_Radon_Prediction_Ensemble.R
 
 sleep 3 # pause to be kind to the scheduler
