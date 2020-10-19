@@ -21,4 +21,5 @@
  9.11: A table of subset analysis, the CV-R2 for each state and each season
  
  10. A major revision on the model itself. We plan to incorporate multiple models of each base learning model. For example, rank all RF models based on R2, pick the first one, then the next
- one with R2 lower than 0.9 with the top model, then select the "top 3"
+ one with R2 lower than 0.9 with the top model, then select the "top 3"[Done]
+ 11.I can run an additional cross validation, select the monthly levels of zipcodes with over 50 observations to hold out and predict
