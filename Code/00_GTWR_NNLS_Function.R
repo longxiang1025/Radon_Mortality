@@ -35,7 +35,7 @@ gtwr_s<-function(obs,
               data=train_set,
               start = initials,
               control = list(maxiter = 50000, minFactor=1/2000, warnOnly=T),
-              weights = wi,
+              weights = wi*train_set[,"weights"],
               lower = rep(0,length(coefs)),
               upper=rep(1,length(coefs)),
               alg = "port")})

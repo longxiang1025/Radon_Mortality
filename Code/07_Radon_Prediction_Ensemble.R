@@ -1,6 +1,6 @@
 sect_id<-as.numeric(Sys.getenv("Sim"))
-# lamda=c(1e-5,1e-4,1e-3,1e-2,5e-2,0.1,0.2,0.3,0.4,0.5)
-# bandwidth=c(100,200,300,500,750,1000)
+# lamda=c(1e-6,1e-5,1e-4,1e-3,1e-2,5e-2,0.1,0.2,0.3,0.4,0.5)
+# bandwidth=c(100,150,200,250,300,400,500,750,1000)
 # parameters=expand.grid(lamda,bandwidth)
 # names(parameters)=c("lamda","bandwidth")
 # parameters$R2=0
@@ -101,23 +101,35 @@ set.seed(4321)
 # base_models=list()
 # b_label=1
 # for(t in unique(base_results$Type)){
-#   ##t mean type, it iterate through all five classes of base models
+# ##t mean type, it iterate through all five classes of base models
 #   bases=base_results%>%filter(Type==t)
 #   bases=bases%>%arrange(desc(CV_R2))
 #   base_tank=list()
 #   base_pred=list()
 #   load(here::here("Data","Medium Data","Model_List",as.character(bases[1,"f"])))
 #   base_tank[[1]]=m
-#   pred=predict(base_tank[[1]],training_data)
+#   if(t=="Neural Networks with Feature Extraction"){
+#     pred=100*predict(base_tank[[1]],training_data)
+#   }else{
+#     pred=predict(base_tank[[1]],training_data)
+#   }
 #   base_pred[[1]]=pred
 #   l=2
 #   for(b_t in 2:nrow(bases)){
 #     load(here::here("Data","Medium Data","Model_List",as.character(bases[b_t,"f"])))
-#     pred=predict(m,training_data)
+#     if(t=="Neural Networks with Feature Extraction"){
+#       pred=100*predict(m,training_data)
+#     }else{
+#       pred=predict(m,training_data)
+#     }
 #     ##calculate the max R2 with selected models, if R2 is <0.9, add the new model in the list
 #     r=0
 #     for(b in 1:length(base_pred)){
-#       r0=cor(pred,base_pred[[b]],use="complete.obs")
+#       temp=cbind.data.frame(pred-training_data$gm_month,
+#                             base_pred[[b]]-training_data$gm_month,
+#                             training_data$n_units)
+#       names(temp)=c("pred","top_pred","w")
+#       r0=corr(temp[,c("pred","top_pred")],w=temp$w)
 #       if(r0>r){
 #         r=r0
 #       }
@@ -162,6 +174,8 @@ m_preds=do.call(cbind,m_preds)
 m_preds$obs=m_cv_pred$obs
 m_preds$weights=m_cv_pred$weights
 
+m_preds[,7:12]=100*m_preds[,7:12]
+
 dist_matrix=st.dist(dp.locat = as.matrix(training_data[,c("X","Y")]),
                     rp.locat = as.matrix(training_data[,c("X","Y")]),
                     obs.tv =training_data$Month,
@@ -170,16 +184,16 @@ dist_matrix=st.dist(dp.locat = as.matrix(training_data[,c("X","Y")]),
 
 ens_m<-gtwr_s(obs=m_preds,
               pred=m_preds,
-              bases = paste0("M",c(1:9,11:13),"_Pred"),
+              bases = paste0("M",c(1:8,10:12),"_Pred"),
               bw=bandwidth,
               kernel = "gaussian",
               dis.matrix = dist_matrix)
 
-pred_base=m_preds[,c(1,3,5,7,9,11,13,15,17,21,23,25)]
+pred_base=m_preds[,paste0("M",c(1:8,10:12),"_Pred")]
 pred_base=cbind.data.frame(1,pred_base)
 names(pred_base)[1]="Intercept"
 
-coefs=ens_m[,2:14]
+coefs=ens_m[,2:13]
 pred=pred_base*coefs
 pred=rowSums(pred)
 
