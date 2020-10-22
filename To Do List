@@ -7,13 +7,13 @@
 7.Create a parameter table/list for base learning method training [Done].
 8.Nerual Network algorithm doesn't work on the original scale of geometric mean. I log transformed it during model training. It should be converted back during prediction.
 9. Ideas about plot/table:
- 9.1: A flowchart of ensemble learning model
- 9.2: Histogram of number of measurements per zipcode/ Histogram of observation ratio per zipcode
- 9.3: A summary table of radon measurements grouped by State/Season/Year ranges (Geometric mean +/- SD, # of obs, # of zipcodes with > 10 obs)
- 9.4: A map of accumulated # of obs in each zipcode, maybe we can calculate the % of buildings measured, so this's a pair of maps (create a table for this as supplementary)
+ 9.1: A flowchart of ensemble learning model [Done]
+ 9.2: Histogram of number of measurements per zipcode/ Histogram of observation ratio per zipcode [Done]
+ 9.3: A summary table of radon measurements grouped by State/Season/Year ranges (Geometric mean +/- SD, # of obs, # of zipcodes with > 10 obs)[Done]
+ 9.4: A map of accumulated # of obs in each zipcode, maybe we can calculate the % of buildings measured, so this's a pair of maps (create a table for this as supplementary) [Done]
  9.5: A group of maps showing the trends of key predictors (Uranium, Thorium, Building Ages, Percent of Surf_42, Soil porosity, Soil moisture)
  9.6: A map of study region with accumulated # of obs per zipcode as background, overlayers inlcude Faults, state, counties, zipcode polygons. On the right of map, plot a vertical histgram
-      showing the geometric mean and IQR of county-level radon obs, ranked by the percent of properties get tested.
+      showing the geometric mean and IQR of county-level radon obs, ranked by the percent of properties get tested. [Done]
  9.7: A scatter plot predicted rn and observed rn with area proportional to number of units tested, and six scatter plots of base learners (simple scatter plots).
  9.8: A summary table of key factors and their association with radon.
  9.9: A wide matrix (3*5) of figures showing the average of (1991-2000, 2001-2010, 2011-2019), spring, summer, autumn and winter radon levels.
@@ -21,4 +21,6 @@
  9.11: A table of subset analysis, the CV-R2 for each state and each season
  
  10. A major revision on the model itself. We plan to incorporate multiple models of each base learning model. For example, rank all RF models based on R2, pick the first one, then the next
- one with R2 lower than 0.9 with the top model, then select the "top 3"
+ one with R2 lower than 0.9 with the top model, then select the "top 3"[Done]
+ 11.I can run an additional cross validation, select the monthly levels of zipcodes with over 50 observations to hold out and predict
+ 12.Types of analysis required in results section: 1) the prediction accuracy of ensemble
