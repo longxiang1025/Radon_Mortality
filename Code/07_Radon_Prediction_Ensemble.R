@@ -184,12 +184,12 @@ dist_matrix=st.dist(dp.locat = as.matrix(training_data[,c("X","Y")]),
 
 ens_m<-gtwr_s(obs=m_preds,
               pred=m_preds,
-              bases = paste0("M",c(1:8,10:12),"_Pred"),
+              bases = paste0("M",c(1:8,10:12),"_CV_Pred"),
               bw=bandwidth,
               kernel = "gaussian",
               dis.matrix = dist_matrix)
 
-pred_base=m_preds[,paste0("M",c(1:8,10:12),"_Pred")]
+pred_base=m_preds[,paste0("M",c(1:8,10:12),"_CV_Pred")]
 pred_base=cbind.data.frame(1,pred_base)
 names(pred_base)[1]="Intercept"
 
