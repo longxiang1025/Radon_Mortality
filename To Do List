@@ -22,5 +22,6 @@
  
  10. A major revision on the model itself. We plan to incorporate multiple models of each base learning model. For example, rank all RF models based on R2, pick the first one, then the next
  one with R2 lower than 0.9 with the top model, then select the "top 3"[Done]
- 11.I can run an additional cross validation, select the monthly levels of zipcodes with over 50 observations to hold out and predict
+ 11.I can run an additional cross validation, select the monthly levels of zipcodes with over 50 observations to hold out and predict[Cancelled]
  12.Types of analysis required in results section: 1) the prediction accuracy of ensemble
+ 13.Big modification on the method. Similar with Kriging with External Drift
