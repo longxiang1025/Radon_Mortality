@@ -48,8 +48,8 @@ training_data$dist2fault=as.numeric(training_data$dist2fault)
 training_data$gm_month=log(training_data$gm_month)
 training_data=as.data.frame(training_data)
 training_data=training_data%>%left_join(zip_coord,by=c("ZIPCODE"="ZIPCODE"))
-training_data=training_data%>%left_join(zipcode_rn_lag,by=c("ZIPCODE"="zipcode",
-                                                            "timestamp"="timestamp"))
+training_data=training_data%>%left_join(zipcode_rn_lag,by=c("ZIPCODE"="ZIPCODE",
+                                                            "timestamp"="Timestamp"))
 training_data[as.integer(substr(training_data$ZIPCODE,1,3))<28,"STATE"]="MA"
 training_data[as.integer(substr(training_data$ZIPCODE,1,3))>28&as.integer(substr(training_data$ZIPCODE,1,3))<30,"STATE"]="RI"
 training_data[as.integer(substr(training_data$ZIPCODE,1,3))>29&as.integer(substr(training_data$ZIPCODE,1,3))<39,"STATE"]="NH"
@@ -164,10 +164,10 @@ set.seed(4321)
 # save(file=here::here("Data","Medium Data","Selected_Base_Models.RData"),base_models)
 ##----------------Build the final model--------------------------------------------
 
-#load(here::here("Data","Medium Data","Selected_Base_Models.RData"))
-#m_preds=list()
-#for(i in 1:length(base_models)){
-#  m_pred=predict(base_models[[i]])
+load(here::here("Data","Medium Data","Selected_Base_Models.RData"))
+# m_preds=list()
+# for(i in 1:length(base_models)){
+#   m_pred=predict(base_models[[i]])
 #   temp=base_models[[i]]$pred
 #   r1=temp[substr(temp$Resample,8,11)=="Rep1",]
 #   r1=r1%>%arrange(rowIndex)
@@ -186,8 +186,11 @@ set.seed(4321)
 # m_preds=do.call(cbind,m_preds)
 # m_preds$obs=training_data$gm_month
 # m_preds$weights=training_data$n_units
+# m_preds$lag_1=training_data$Rn_Lag_1
+# m_preds$lag_2=training_data$Rn_Lag_2
+# m_preds$lag_3=training_data$Rn_Lag_3
 # m_preds[,13:24]=100*m_preds[,13:24]
-# save(file=here::here("Data","Medium Data","Ensemble_Training_Data.RData"),m_preds)
+#save(file=here::here("Data","Medium Data","Ensemble_Training_Data.RData"),m_preds)
 
 load(here::here("Data","Medium Data","Ensemble_Training_Data.RData"))
 dist_matrix=st.dist(dp.locat = as.matrix(training_data[,c("X","Y")]),
@@ -196,18 +199,18 @@ dist_matrix=st.dist(dp.locat = as.matrix(training_data[,c("X","Y")]),
                     reg.tv =training_data$Month,
                     lamda = lamda)
 
-pred_base=m_preds[,paste0("M",c(1:length(base_models)),"_Pred")]
+pred_base=m_preds[,c(paste0("M",c(1:length(base_models)),"_Pred"),"lag_1","lag_2","lag_3")]
 pred_base=cbind.data.frame(1,pred_base)
 names(pred_base)[1]="Intercept"
 
 for(r in 1:3){
   ens_m<-gtwr_s(obs=m_preds,
                 pred=m_preds,
-                bases = paste0("M",c(1:length(base_models)),"_R",r,"_CV_Pred"),
+                bases = c(paste0("M",c(1:length(base_models)),"_R",r,"_CV_Pred"),"lag_1","lag_2","lag_3"),
                 bw=bandwidth,
                 kernel = "gaussian",
                 dis.matrix = dist_matrix)
-  coefs=ens_m[,2:(length(base_models)+2)]
+  coefs=ens_m[,2:(length(base_models)+5)]
   pred=pred_base*coefs
   pred=rowSums(pred)
   
@@ -219,6 +222,6 @@ m_preds$Ens_Pred=rowMeans(m_preds[,c("R1_Ens_Pred","R2_Ens_Pred","R3_Ens_Pred")]
 
 load(here::here("Data","Medium Data","Ensemble_Tune_Result.RData"))
 parameters[sect_id,"R2"]=corr(m_preds[,c("Ens_Pred","obs")],w=m_preds$weights)
-print(parameters[sect_id,"R2"]^2)
+print(parameters[sect_id,"R2"])
 save(file=here::here("Data","Medium Data","Ensemble_Tune_Result.RData"),parameters)
 

@@ -25,40 +25,51 @@ save(file=here::here("Data","Medium Data","zipcode_coords.RData"),zip_coord)
 training_data=training_data%>%left_join(zip_coord,by=c("ZIPCODE"="ZIPCODE"))
 
 #For each month & year, select the zipcode-level radon in nearest 20 zipcodes in the past/forward two months
-lag_tank=list()
-l=1
-for(t in 181:348){
-  m_training=training_data%>%filter(timestamp>(t-4),timestamp<(t+4))
-  print(nrow(m_training))
-  for(z in 1:nrow(zip_ne)){
-    src=zip_coord[z,]
-    #Exclude itself
-    ngbs=m_training%>%filter(!(ZIPCODE==src$ZIPCODE&timestamp==t))
-    if(nrow(ngbs)<20){
-      nk=nrow(ngbs)
-    }else{
-      nk=20
+
+t_range=c(4,3,2)
+r_range=c(10,15,20)
+
+lag_stack=list()
+for(i in 1:3){
+  lag_tank=list()
+  l=1
+  for(t in 181:348){
+    m_training=training_data%>%filter(timestamp>(t-t_range[i]),timestamp<(t+t_range[i]))
+    print(nrow(m_training))
+    for(z in 1:nrow(zip_ne)){
+      src=zip_coord[z,]
+      #Exclude itself
+      ngbs=m_training%>%filter(!(ZIPCODE==src$ZIPCODE&timestamp==t))
+      if(nrow(ngbs)<(r_range[i])){
+        nk=nrow(ngbs)
+      }else{
+        nk=r_range[i]
+      }
+      #
+      links=RANN::nn2(query=src[,c("X","Y")],
+                      data = ngbs[,c("X","Y")],k=nk)
+      index=t(links$nn.idx)
+      ngb_zipcode=ngbs[index,]
+      
+      radon_obs=ngb_zipcode$gm_month
+      radon_num=ngb_zipcode$n_units
+      radon_dist=t(links$nn.dists)
+      radon_dist=radon_dist+5000*abs(ngb_zipcode$timestamp-t)
+      #calculate weighted average
+      re<-cbind.data.frame(t,
+                           src$ZIPCODE,
+                           stats::weighted.mean(x=radon_obs,w=radon_num/radon_dist))
+      names(re)=c("timestamp","zipcode","rn_lag")
+      lag_tank[[l]]=re
+      l=l+1
     }
-    #
-    links=RANN::nn2(query=src[,c("X","Y")],
-                    data = ngbs[,c("X","Y")],k=nk)
-    index=t(links$nn.idx)
-    ngb_zipcode=ngbs[index,]
-    
-    radon_obs=ngb_zipcode$gm_month
-    radon_num=ngb_zipcode$n_units
-    radon_dist=t(links$nn.dists)
-    radon_dist=radon_dist+5000*abs(ngb_zipcode$timestamp-t)
-    #calculate weighted average
-    re<-cbind.data.frame(t,
-                         src$ZIPCODE,
-                         stats::weighted.mean(x=radon_obs,w=radon_num/radon_dist))
-    names(re)=c("timestamp","zipcode","rn_lag")
-    lag_tank[[l]]=re
-    l=l+1
+    print(paste("Finish Time Stamp ",t))
   }
-  print(paste("Finish Time Stamp ",t))
+  lag_stack[[i]]=bind_rows(lag_tank)
 }
-zipcode_rn_lag=bind_rows(lag_tank)
+
+zipcode_rn_lag=bind_cols(lag_stack)
+zipcode_rn_lag=zipcode_rn_lag[,c(1:3,6,9)]
+names(zipcode_rn_lag)=c("Timestamp","ZIPCODE","Rn_Lag_1","Rn_Lag_2","Rn_Lag_3")
 save(file=here::here("Data","Medium Data","Lag_Rn.RData"),zipcode_rn_lag)
 
