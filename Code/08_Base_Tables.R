@@ -14,8 +14,8 @@ training_data$dist2fault=as.numeric(training_data$dist2fault)
 training_data$gm_month=log(training_data$gm_month)
 training_data=as.data.frame(training_data)
 training_data=training_data%>%left_join(zip_coord,by=c("ZIPCODE"="ZIPCODE"))
-training_data=training_data%>%left_join(zipcode_rn_lag,by=c("ZIPCODE"="zipcode",
-                                                            "timestamp"="timestamp"))
+training_data=training_data%>%left_join(zipcode_rn_lag,by=c("ZIPCODE"="ZIPCODE",
+                                                            "timestamp"="Timestamp"))
 
 training_data=na.omit(training_data)
 
@@ -40,4 +40,21 @@ t=training_data%>%group_by(as.integer((Year-2005)/5),STATE)%>%summarise(m=weight
                                                                         n=length(gm_month))
 t=cbind.data.frame(t[1:6,2:5],t[7:12,3:5],t[13:18,3:5])
 #Table 2(S), correlation table between radon and key predictor
-corr(training_data[,c("gm_month","rn_lag")],w=training_data$n_units)
+features=c("Uranium","Rn_Potential","Thorium",
+           "Units_2010_2013","Units_2000_2009","Units_1960_1969","Units_1950_1959",
+           "Two_Room_Unit",
+           "Five_Room_Unit",
+           "Two_Bedroom_Unit",
+           "Four_Bedroom_Unit",
+           "Gas_Fuel",
+           "Oil_Fuel",
+           "rhum",
+           "temp",
+           "soilm",
+           "soilt",
+           "pcp",
+           "AVG_NO4",
+           "AVG_NO10",
+           "AVG_NO200",
+           "dist2fault")
+wtd.cor(training_data$gm_month,training_data[,features])

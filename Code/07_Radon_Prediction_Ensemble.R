@@ -199,18 +199,18 @@ dist_matrix=st.dist(dp.locat = as.matrix(training_data[,c("X","Y")]),
                     reg.tv =training_data$Month,
                     lamda = lamda)
 
-pred_base=m_preds[,c(paste0("M",c(1:length(base_models)),"_Pred"),"lag_1","lag_2","lag_3")]
+pred_base=m_preds[,paste0("M",c(1:length(base_models)),"_Pred")]
 pred_base=cbind.data.frame(1,pred_base)
 names(pred_base)[1]="Intercept"
 
 for(r in 1:3){
   ens_m<-gtwr_s(obs=m_preds,
                 pred=m_preds,
-                bases = c(paste0("M",c(1:length(base_models)),"_R",r,"_CV_Pred"),"lag_1","lag_2","lag_3"),
+                bases = paste0("M",c(1:length(base_models)),"_R",r,"_CV_Pred"),
                 bw=bandwidth,
                 kernel = "gaussian",
                 dis.matrix = dist_matrix)
-  coefs=ens_m[,2:(length(base_models)+5)]
+  coefs=ens_m[,2:(length(base_models)+2)]
   pred=pred_base*coefs
   pred=rowSums(pred)
   

@@ -74,8 +74,8 @@ training_data$dist2fault=as.numeric(training_data$dist2fault)
 training_data$gm_month=log(training_data$gm_month)
 training_data=as.data.frame(training_data)
 training_data=training_data%>%left_join(zip_coord,by=c("ZIPCODE"="ZIPCODE"))
-training_data=training_data%>%left_join(zipcode_rn_lag,by=c("ZIPCODE"="zipcode",
-                                                            "timestamp"="timestamp"))
+training_data=training_data%>%left_join(zipcode_rn_lag,by=c("ZIPCODE"="ZIPCODE",
+                                                            "timestamp"="Timestamp"))
 training_data[as.integer(substr(training_data$ZIPCODE,1,3))<28,"STATE"]="MA"
 training_data[as.integer(substr(training_data$ZIPCODE,1,3))>28&as.integer(substr(training_data$ZIPCODE,1,3))<30,"STATE"]="RI"
 training_data[as.integer(substr(training_data$ZIPCODE,1,3))>29&as.integer(substr(training_data$ZIPCODE,1,3))<39,"STATE"]="NH"
@@ -85,7 +85,7 @@ training_data[as.integer(substr(training_data$ZIPCODE,1,3))>59&as.integer(substr
 training_data[is.na(training_data$STATE),"STATE"]="RI"
 training_data=na.omit(training_data)
 
-features=names(training_data)[c(1:2,15:16,18:93)]
+features=names(training_data)[c(1:2,15:16,18:96)]
 CVfolds <- 10
 CVrepeats <- 3
 #set.seed(4321)
@@ -162,7 +162,7 @@ if(id==4){
   prune=1
   m=caret::train(
     y=training_data$gm_month,
-    x=training_data[,features[c(1:21,23:80)]],
+    x=training_data[,features[c(1:21,23:83)]],
     weights=training_data$n_units,
     metric="Rsquare",
     trControl=control,
@@ -199,7 +199,7 @@ if(id==6){
   psi=para_list[[id]][in_id,"psi"]
   m=caret::train(
     y=training_data$gm_month,
-    x=training_data[,features[c(1:13,15:45,47:54,56:60,62:77,79:80)]],
+    x=training_data[,features[c(1:13,15:45,47:54,56:60,62:77,79:83)]],
     weights=training_data$n_units,
     metric="Rsquare",
     trControl=control,
