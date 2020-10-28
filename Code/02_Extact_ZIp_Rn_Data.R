@@ -14,6 +14,7 @@ pa_lab_data$TestPostalCode<-as.character(pa_lab_data$TestPostalCode)
 
 load(here::here("Data","GeoData","2015_Shapes.RData"))
 load(here::here("Data","GeoData","Boundaries.RData"))
+load(here::here("Data","Medium Data","GB_ZIPCODE.RData"))
 
 #clean the date data of NC lab
 nc_lab_data$STARTDATE=as.character(nc_lab_data$STARTDATE)
@@ -29,8 +30,8 @@ nc_lab_data$ENDDATE<-as.Date(nc_lab_data$ENDDATE,"%m/%d/%Y")
 
 nc_lab_data$ZIPCODE=substr(nc_lab_data$POSTALCODE,1,5)
 nc_lab_data$PCI.L=as.numeric(as.character(nc_lab_data$PCI.L))
-nc_lab_data=nc_lab_data%>%filter(STATE%in%c("MA","NH","CT","ME","VT","RI"))
-
+#nc_lab_data=nc_lab_data%>%filter(STATE%in%c("MA","NH","CT","ME","VT","RI"))
+nc_lab_data=nc_lab_data%>%filter(ZIPCODE%in%gb_zip$ZIP)
 #clean the date data for MA lab
 ma_lab_data$StartDate=as.character(ma_lab_data$StartDate)
 ma_lab_data$EndDate=as.character(ma_lab_data$EndDate)
@@ -45,7 +46,8 @@ ma_lab_data$EndDate<-as.Date(ma_lab_data$EndDate,"%m/%d/%Y")
 
 ma_lab_data$PCI.L=as.numeric(as.character(ma_lab_data$Result))
 ma_lab_data[is.na(ma_lab_data$PCI.L),"PCI.L"]=0
-ma_lab_data=ma_lab_data%>%filter(TestState%in%c("MA","NH","CT","ME","VT","RI"))
+ma_lab_data=ma_lab_data%>%filter(TestPostalCode%in%gb_zip$ZIP)
+#ma_lab_data=ma_lab_data%>%filter(TestState%in%c("MA","NH","CT","ME","VT","RI"))
 #clean the date data for PA lab
 pa_lab_data$StartDate=as.character(pa_lab_data$StartDate)
 pa_lab_data$EndDate=as.character(pa_lab_data$EndDate)
@@ -60,7 +62,8 @@ pa_lab_data$EndDate<-as.Date(pa_lab_data$EndDate,"%m/%d/%Y")
 
 pa_lab_data$PCI.L=as.numeric(as.character(pa_lab_data$Result))
 pa_lab_data[is.na(pa_lab_data$PCI.L),"PCI.L"]=0
-pa_lab_data=pa_lab_data%>%filter(TestState%in%c("MA","NH","CT","ME","VT","RI"))
+pa_lab_data=pa_lab_data%>%filter(TestPostalCode%in%gb_zip$ZIP)
+#pa_lab_data=pa_lab_data%>%filter(TestState%in%c("MA","NH","CT","ME","VT","RI"))
 #select the measurements in period
 ma_lab_data$Year=lubridate::year(ma_lab_data$StartDate)
 pa_lab_data$Year=lubridate::year(pa_lab_data$StartDate)
@@ -112,16 +115,16 @@ nc_lab_data$Type="AirChek"
 ma_lab_data$Type="AccuStar"
 pa_lab_data$Type="AccuStar"
 
-nc_lab_data=nc_lab_data[,c("STARTDATE","ENDDATE","ZIPCODE","STATE","COUNTY","CITY","PCI.L","FINGERPRINT","HOURS","Type")]
-ma_lab_data=ma_lab_data[,c("StartDate","EndDate","TestPostalCode","TestState","County","TestCity","PCI.L","Checksum_TestAddress","Hours","Type")]
-pa_lab_data=pa_lab_data[,c("StartDate","EndDate","TestPostalCode","TestState","County","TestCity","PCI.L","Checksum_TestAddress","Hours","Type")]
+nc_lab_data=nc_lab_data[,c("STARTDATE","ENDDATE","ZIPCODE","STATE","COUNTY","CITY","PCI.L","FINGERPRINT","HOURS","Type","METHOD")]
+ma_lab_data=ma_lab_data[,c("StartDate","EndDate","TestPostalCode","TestState","County","TestCity","PCI.L","Checksum_TestAddress","Hours","Type","Method")]
+#pa_lab_data=pa_lab_data[,c("StartDate","EndDate","TestPostalCode","TestState","County","TestCity","PCI.L","Checksum_TestAddress","Hours","Type","Method")]
 names(ma_lab_data)=names(nc_lab_data)
-names(pa_lab_data)=names(nc_lab_data)
+#names(pa_lab_data)=names(nc_lab_data)
 nc_lab_data$FINGERPRINT=as.character(nc_lab_data$FINGERPRINT)
 ma_lab_data$FINGERPRINT=as.character(ma_lab_data$FINGERPRINT)
-pa_lab_data$FINGERPRINT=as.character(pa_lab_data$FINGERPRINT)
+#pa_lab_data$FINGERPRINT=as.character(pa_lab_data$FINGERPRINT)
 
-ne_radon=bind_rows(nc_lab_data,ma_lab_data,pa_lab_data)
+ne_radon=bind_rows(nc_lab_data,ma_lab_data)
 #add month column and season column
 ne_radon$Month=lubridate::month(ne_radon$STARTDATE)
 ne_radon$Year=lubridate::year(ne_radon$STARTDATE)
@@ -159,11 +162,6 @@ zip_year=ne_radon%>%group_by(Year,ZIPCODE)%>%
             autumn_prop=sum(Season=="Autumn")/length(FINGERPRINT),
             winter_prop=sum(Season=="Winter")/length(FINGERPRINT),
             n_units=n_distinct(FINGERPRINT),n_obs=length(FINGERPRINT))
-
-# a total of 594 zipcodes have at least one month with over 5 radon measurements
-# zipcode 02879 located in RI has 149 months, windham has 7 months.
-#zip_summ<-zip_month%>%filter(n>4)%>%group_by(ZIPCODE)%>%count()%>%arrange(desc(n))
-
 save(file = here::here("Data","Medium Data","NE_Rn_Obs.RData"),ne_radon)
 save(file = here::here("Data","Medium Data","NE_Season_Rn.RData"),zip_season)
 save(file = here::here("Data","Medium Data","NE_Month_Rn.RData"),zip_month)

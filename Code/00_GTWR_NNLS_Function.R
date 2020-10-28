@@ -20,12 +20,14 @@ gtwr_s<-function(obs,
     train_set=obs[indx,]
     bw_st=bw_st/2
     wi=exp(-.5*(dis.matrix[indx,p]/bw_st)^2)
+    wi=wi*train_set[,"weights"]
+    wi=wi/max(wi)
     model_status=try({
       m=nls(as.formula(form),
           data=train_set,
           start = initials,
           control = list(maxiter = 50000, minFactor=1/2000, warnOnly=T),
-          weights = wi*train_set[,"weights"],
+          weights = wi,
           lower = rep(0,length(coefs)),
           upper=rep(1,length(coefs)),
           alg = "port")})
@@ -35,7 +37,7 @@ gtwr_s<-function(obs,
               data=train_set,
               start = initials,
               control = list(maxiter = 50000, minFactor=1/2000, warnOnly=T),
-              weights = wi*train_set[,"weights"],
+              weights = wi,
               lower = rep(0,length(coefs)),
               upper=rep(1,length(coefs)),
               alg = "port")})

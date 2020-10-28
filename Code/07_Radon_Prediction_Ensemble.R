@@ -88,8 +88,8 @@ set.seed(4321)
 #  m_files=list.files(here::here("Data","Medium Data","Model_List"))
 #  base_results=list()
 #  l=1
-#  for(f in m_files){
-#    load(here::here("Data","Medium Data","Model_List",f))
+# for(f in m_files){
+#   load(here::here("Data","Medium Data","Model_List",f))
 #   in_pred=predict(m)
 #   temp_df=cbind.data.frame(in_pred,training_data$gm_month,training_data$n_units)
 #   names(temp_df)=c("Pred","Obs","w")
@@ -165,32 +165,32 @@ set.seed(4321)
 ##----------------Build the final model--------------------------------------------
 
 load(here::here("Data","Medium Data","Selected_Base_Models.RData"))
-# m_preds=list()
-# for(i in 1:length(base_models)){
-#   m_pred=predict(base_models[[i]])
-#   temp=base_models[[i]]$pred
-#   r1=temp[substr(temp$Resample,8,11)=="Rep1",]
-#   r1=r1%>%arrange(rowIndex)
-#   r2=temp[substr(temp$Resample,8,11)=="Rep2",]
-#   r2=r2%>%arrange(rowIndex)
-#   r3=temp[substr(temp$Resample,8,11)=="Rep3",]
-#   r3=r3%>%arrange(rowIndex)
-#   cv_result=cbind.data.frame(r1$pred,r2$pred,r3$pred)
-#   names(cv_result)=c("R1_CV_Pred","R2_CV_Pred","R3_CV_Pred")
-#   record=cbind.data.frame(m_pred,cv_result)
-#   names(record)[1]="Pred"
-#   names(record)=paste0("M",i,"_",names(record))
-#   print(nrow(record))
-#   m_preds[[i]]=record
-# }
-# m_preds=do.call(cbind,m_preds)
-# m_preds$obs=training_data$gm_month
-# m_preds$weights=training_data$n_units
-# m_preds$lag_1=training_data$Rn_Lag_1
-# m_preds$lag_2=training_data$Rn_Lag_2
-# m_preds$lag_3=training_data$Rn_Lag_3
-# m_preds[,13:24]=100*m_preds[,13:24]
-#save(file=here::here("Data","Medium Data","Ensemble_Training_Data.RData"),m_preds)
+m_preds=list()
+for(i in 1:length(base_models)){
+ m_pred=predict(base_models[[i]])
+ temp=base_models[[i]]$pred
+ r1=temp[substr(temp$Resample,8,11)=="Rep1",]
+ r1=r1%>%arrange(rowIndex)
+ r2=temp[substr(temp$Resample,8,11)=="Rep2",]
+ r2=r2%>%arrange(rowIndex)
+ r3=temp[substr(temp$Resample,8,11)=="Rep3",]
+ r3=r3%>%arrange(rowIndex)
+ cv_result=cbind.data.frame(r1$pred,r2$pred,r3$pred)
+ names(cv_result)=c("R1_CV_Pred","R2_CV_Pred","R3_CV_Pred")
+ record=cbind.data.frame(m_pred,cv_result)
+ names(record)[1]="Pred"
+ names(record)=paste0("M",i,"_",names(record))
+ print(nrow(record))
+ m_preds[[i]]=record
+}
+m_preds=do.call(cbind,m_preds)
+m_preds$obs=training_data$gm_month
+m_preds$weights=training_data$n_units
+m_preds[,13:24]=100*m_preds[,13:24]
+m_preds$X=training_data$X
+m_preds$Y=training_data$Y
+m_preds$timestamp=training_data$timestamp
+# save(file=here::here("Data","Medium Data","Ensemble_Training_Data.RData"),m_preds)
 
 load(here::here("Data","Medium Data","Ensemble_Training_Data.RData"))
 dist_matrix=st.dist(dp.locat = as.matrix(training_data[,c("X","Y")]),
@@ -199,23 +199,24 @@ dist_matrix=st.dist(dp.locat = as.matrix(training_data[,c("X","Y")]),
                     reg.tv =training_data$Month,
                     lamda = lamda)
 
-pred_base=m_preds[,paste0("M",c(1:length(base_models)),"_Pred")]
-pred_base=cbind.data.frame(1,pred_base)
-names(pred_base)[1]="Intercept"
 
 for(r in 1:3){
+  base_features=paste0("M",c(1:9,11:length(base_models)),"_R",r,"_CV_Pred")
+  pred_base=m_preds[,base_features]
+  pred_base=cbind.data.frame(1,pred_base)
+  names(pred_base)[1]="Intercept"
+  
   ens_m<-gtwr_s(obs=m_preds,
                 pred=m_preds,
-                bases = paste0("M",c(1:length(base_models)),"_R",r,"_CV_Pred"),
+                bases = base_features,
                 bw=bandwidth,
                 kernel = "gaussian",
                 dis.matrix = dist_matrix)
-  coefs=ens_m[,2:(length(base_models)+2)]
+  coefs=ens_m[,2:(length(base_models)+1)]
   pred=pred_base*coefs
   pred=rowSums(pred)
   
   m_preds[,paste0("R",r,"_Ens_Pred")]=pred
-  
 }
 
 m_preds$Ens_Pred=rowMeans(m_preds[,c("R1_Ens_Pred","R2_Ens_Pred","R3_Ens_Pred")])
