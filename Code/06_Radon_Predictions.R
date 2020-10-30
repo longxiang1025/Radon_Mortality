@@ -85,7 +85,11 @@ training_data[as.integer(substr(training_data$ZIPCODE,1,3))>59&as.integer(substr
 training_data[is.na(training_data$STATE),"STATE"]="RI"
 training_data=na.omit(training_data)
 
-features=names(training_data)[c(1:2,15:16,18:90,94:96)]
+features=names(training_data)[c(1:2,
+                                20:28,
+                                32:55,
+                                58:107,
+                                111:113)]
 CVfolds <- 10
 CVrepeats <- 3
 #set.seed(4321)

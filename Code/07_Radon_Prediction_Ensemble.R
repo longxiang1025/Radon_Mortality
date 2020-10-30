@@ -1,6 +1,6 @@
 sect_id<-as.numeric(Sys.getenv("Sim"))
 # lamda=c(1e-6,1e-5,1e-4,1e-3,1e-2,5e-2,0.1,0.2,0.3,0.4,0.5)
-# bandwidth=c(100,150,200,250,300,400,500,750,1000)
+# bandwidth=c(100,200,300,400,500,600,700,800,900,1000)
 # parameters=expand.grid(lamda,bandwidth)
 # names(parameters)=c("lamda","bandwidth")
 # parameters$R2=0
@@ -59,7 +59,7 @@ training_data[as.integer(substr(training_data$ZIPCODE,1,3))>59&as.integer(substr
 training_data[is.na(training_data$STATE),"STATE"]="RI"
 training_data=na.omit(training_data)
 
-features=names(training_data)[c(1:2,15:16,18:93)]
+features=names(training_data)[c(1:2,15:16,18:90,94:96)]
 CVfolds <- 10
 CVrepeats <- 3
 
@@ -107,89 +107,89 @@ set.seed(4321)
 ##----------------Select base models based on the performance and diversity------------
 #load(here::here("Data","Medium Data","Base_Model_Results.RData"))
 ##The top-level list containing base models of all type
-# base_models=list()
-# b_label=1
-# for(t in unique(base_results$Type)){
-# ##t mean type, it iterate through all five classes of base models
-#   bases=base_results%>%filter(Type==t)
-#   bases=bases%>%arrange(desc(CV_R2))
-#   base_tank=list()
-#   base_pred=list()
-#   load(here::here("Data","Medium Data","Model_List",as.character(bases[1,"f"])))
-#   base_tank[[1]]=m
-#   if(t=="Neural Networks with Feature Extraction"){
-#     pred=100*predict(base_tank[[1]],training_data)
-#   }else{
-#     pred=predict(base_tank[[1]],training_data)
-#   }
-#   base_pred[[1]]=pred
-#   l=2
-#   for(b_t in 2:nrow(bases)){
-#     load(here::here("Data","Medium Data","Model_List",as.character(bases[b_t,"f"])))
-#     if(t=="Neural Networks with Feature Extraction"){
-#       pred=100*predict(m,training_data)
-#     }else{
-#       pred=predict(m,training_data)
-#     }
-#     ##calculate the max R2 with selected models, if R2 is <0.9, add the new model in the list
-#     r=0
-#     for(b in 1:length(base_pred)){
-#       temp=cbind.data.frame(pred-training_data$gm_month,
-#                             base_pred[[b]]-training_data$gm_month,
-#                             training_data$n_units)
-#       names(temp)=c("pred","top_pred","w")
-#       r0=corr(temp[,c("pred","top_pred")],w=temp$w)
-#       if(r0>r){
-#         r=r0
-#       }
-#     }
-#     if(r<0.949){
-#       print(paste("#",t,b_t,format(r,digits=4),as.character(bases[b_t,"f"]),"is used"))
-#       base_tank[[l]]=m
-#       base_pred[[l]]=pred
-#       l=l+1
-#     }
-#     else{
-#       print(paste("#",t,b_t,format(r,digits=4),as.character(bases[b_t,"f"]),"is very similar with top model(s)"))
-#     }
-#     if(l==4){
-#         break()
-#     }
-#   }
-#   for(temp in 1:length(base_tank)){
-#     base_models[[b_label]]=base_tank[[temp]]
-#     b_label=b_label+1
-#   }
-# }
-# save(file=here::here("Data","Medium Data","Selected_Base_Models.RData"),base_models)
+ #  base_models=list()
+ #  b_label=1
+ #  for(t in unique(base_results$Type)){
+ #  ##t mean type, it iterate through all five classes of base models
+ #   bases=base_results%>%filter(Type==t)
+ #   bases=bases%>%arrange(desc(CV_R2))
+ #   base_tank=list()
+ #   base_pred=list()
+ #   load(here::here("Data","Medium Data","Model_List",as.character(bases[1,"f"])))
+ #   base_tank[[1]]=m
+ #   if(t=="Neural Networks with Feature Extraction"){
+ #     pred=100*predict(base_tank[[1]],training_data)
+ #   }else{
+ #     pred=predict(base_tank[[1]],training_data)
+ #   }
+ #   base_pred[[1]]=pred
+ #   l=2
+ #   for(b_t in 2:nrow(bases)){
+ #     load(here::here("Data","Medium Data","Model_List",as.character(bases[b_t,"f"])))
+ #     if(t=="Neural Networks with Feature Extraction"){
+ #       pred=100*predict(m,training_data)
+ #     }else{
+ #       pred=predict(m,training_data)
+ #     }
+ #     ##calculate the max R2 with selected models, if R2 is <0.9, add the new model in the list
+ #     r=0
+ #     for(b in 1:length(base_pred)){
+ #       temp=cbind.data.frame(pred-training_data$gm_month,
+ #                             base_pred[[b]]-training_data$gm_month,
+ #                             training_data$n_units)
+ #       names(temp)=c("pred","top_pred","w")
+ #       r0=corr(temp[,c("pred","top_pred")],w=temp$w)
+ #       if(r0>r){
+ #         r=r0
+ #       }
+ #     }
+ #     if((r<0.949)&(r>0.25)){
+ #       print(paste("#",t,b_t,format(r,digits=4),as.character(bases[b_t,"f"]),"is used"))
+ #       base_tank[[l]]=m
+ #       base_pred[[l]]=pred
+ #       l=l+1
+ #     }
+ #     else{
+ #       print(paste("#",t,b_t,format(r,digits=4),as.character(bases[b_t,"f"]),"is very similar with top model(s)"))
+ #     }
+ #     if(l==4){
+ #         break()
+ #     }
+ #   }
+ #   for(temp in 1:length(base_tank)){
+ #     base_models[[b_label]]=base_tank[[temp]]
+ #     b_label=b_label+1
+ #   }
+ # }
+ # save(file=here::here("Data","Medium Data","Selected_Base_Models.RData"),base_models)
 ##----------------Build the final model--------------------------------------------
 
-load(here::here("Data","Medium Data","Selected_Base_Models.RData"))
-m_preds=list()
-for(i in 1:length(base_models)){
- m_pred=predict(base_models[[i]])
- temp=base_models[[i]]$pred
- r1=temp[substr(temp$Resample,8,11)=="Rep1",]
- r1=r1%>%arrange(rowIndex)
- r2=temp[substr(temp$Resample,8,11)=="Rep2",]
- r2=r2%>%arrange(rowIndex)
- r3=temp[substr(temp$Resample,8,11)=="Rep3",]
- r3=r3%>%arrange(rowIndex)
- cv_result=cbind.data.frame(r1$pred,r2$pred,r3$pred)
- names(cv_result)=c("R1_CV_Pred","R2_CV_Pred","R3_CV_Pred")
- record=cbind.data.frame(m_pred,cv_result)
- names(record)[1]="Pred"
- names(record)=paste0("M",i,"_",names(record))
- print(nrow(record))
- m_preds[[i]]=record
-}
-m_preds=do.call(cbind,m_preds)
-m_preds$obs=training_data$gm_month
-m_preds$weights=training_data$n_units
-m_preds[,13:24]=100*m_preds[,13:24]
-m_preds$X=training_data$X
-m_preds$Y=training_data$Y
-m_preds$timestamp=training_data$timestamp
+# load(here::here("Data","Medium Data","Selected_Base_Models.RData"))
+# m_preds=list()
+# for(i in 1:(length(base_models))){
+#   m_pred=predict(base_models[[i]])
+#   temp=base_models[[i]]$pred
+#   r1=temp[substr(temp$Resample,8,11)=="Rep1",]
+#   r1=r1%>%arrange(rowIndex)
+#   r2=temp[substr(temp$Resample,8,11)=="Rep2",]
+#   r2=r2%>%arrange(rowIndex)
+#   r3=temp[substr(temp$Resample,8,11)=="Rep3",]
+#   r3=r3%>%arrange(rowIndex)
+#   cv_result=cbind.data.frame(r1$pred,r2$pred,r3$pred)
+#   names(cv_result)=c("R1_CV_Pred","R2_CV_Pred","R3_CV_Pred")
+#   record=cbind.data.frame(m_pred,cv_result)
+#   names(record)[1]="Pred"
+#   names(record)=paste0("M",i,"_",names(record))
+#   print(nrow(record))
+#   m_preds[[i]]=record
+# }
+# m_preds=do.call(cbind,m_preds)
+# m_preds$obs=training_data$gm_month
+# m_preds$weights=training_data$n_units
+# m_preds[,13:24]=100*m_preds[,13:24]
+# m_preds$X=training_data$X
+# m_preds$Y=training_data$Y
+# m_preds$timestamp=training_data$timestamp
 # save(file=here::here("Data","Medium Data","Ensemble_Training_Data.RData"),m_preds)
 
 load(here::here("Data","Medium Data","Ensemble_Training_Data.RData"))
@@ -201,7 +201,7 @@ dist_matrix=st.dist(dp.locat = as.matrix(training_data[,c("X","Y")]),
 
 
 for(r in 1:3){
-  base_features=paste0("M",c(1:9,11:length(base_models)),"_R",r,"_CV_Pred")
+  base_features=paste0("M",c(1:9),"_R",r,"_CV_Pred")
   pred_base=m_preds[,base_features]
   pred_base=cbind.data.frame(1,pred_base)
   names(pred_base)[1]="Intercept"
@@ -212,7 +212,7 @@ for(r in 1:3){
                 bw=bandwidth,
                 kernel = "gaussian",
                 dis.matrix = dist_matrix)
-  coefs=ens_m[,2:(length(base_models)+1)]
+  coefs=ens_m[,2:11]
   pred=pred_base*coefs
   pred=rowSums(pred)
   

@@ -14,12 +14,12 @@ gtwr_s<-function(obs,
   form=paste0(paste0(coefs[2:(1+length(bases))],"*",bases[1:length(bases)]),collapse = "+")
   form=paste0("obs~b0+",form)
   for(p in 1:nrow(pred)){
-    rnk=rank(dis.matrix[,p],ties.method = "first")
-    bw_st=dis.matrix[which(rnk==bw),p]
-    indx=which((dis.matrix[,p]<bw_st)&(dis.matrix[,p]>0))
+    rnk=rank(dis.matrix[p,],ties.method = "first")
+    bw_st=dis.matrix[p,bw]
+    indx=which((dis.matrix[p,]<bw_st)&(dis.matrix[p,]>0))
     train_set=obs[indx,]
     bw_st=bw_st/2
-    wi=exp(-.5*(dis.matrix[indx,p]/bw_st)^2)
+    wi=exp(-.5*(dis.matrix[p,indx]/bw_st)^2)
     wi=wi*train_set[,"weights"]
     wi=wi/max(wi)
     model_status=try({

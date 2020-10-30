@@ -1,13 +1,16 @@
 library(here)
 library(dplyr)
+library(sf)
 
 housing<-read.csv("/n/koutrakis_lab/lab/Group_Data/America Community Survey/ACS_Housing_Table.csv")
 housing$Geo_ZCTA5=formatC(housing$Geo_ZCTA5,width=5,flag=0)
 
 load(here::here("Data","GeoData","2015_Shapes.RData"))
+load(file=here::here("Data","Medium Data","GB_ZIPCODE.RData"))
 
-zips=zips[zips$STATE%in%c("MA","NH","CT","RI","VT","ME"),]
-zips_house=zips@data%>%left_join(housing,by=c("ZIP"="Geo_ZCTA5"))
+zips=gb_zip
+zips_house=zips%>%left_join(housing,by=c("ZIP"="Geo_ZCTA5"))
+zips_house$geometry=NULL
 
 #Convert absolute value to percentage
 zips_house[,c("Single_Family","Two_Units_Housing","Three_Four_Units_Housing",

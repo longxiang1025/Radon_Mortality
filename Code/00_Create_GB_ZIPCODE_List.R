@@ -1,6 +1,7 @@
 library(sf)
 library(dplyr)
 library(ggplot2)
+load(here::here("Data","GeoData","Counties.RData"))
 county_sf=st_as_sf(county)
 ne_county=county_sf%>%dplyr::filter(STATEFP%in%c("25","33","44"))
 gb_county=ne_county%>%dplyr::filter(GEOID%in%c("25021",
@@ -23,7 +24,9 @@ gb_county=ne_county%>%dplyr::filter(GEOID%in%c("25021",
                                                "44009",
                                                "09015"))
 load(here::here("Data","GeoData","2015_Shapes.RData"))
-zip_sf=st_as_sf(zip_ne)
+zip_sf=st_as_sf(zips)
 zip_sf=st_transform(zip_sf,st_crs(gb_county))
 gb_zip=st_intersection(zip_sf,gb_county)
+gb_zip=zip_sf%>%filter(ZIP%in%gb_zip$ZIP)
+
 save(file=here::here("Data","Medium Data","GB_ZIPCODE.RData"),gb_zip)

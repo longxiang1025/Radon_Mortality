@@ -30,7 +30,8 @@ zip_season_mete=zip_mete_record%>%group_by(ZIP,Season_Year,Season)%>%summarise(
    snowc=mean(snowc),
    soilm=mean(soilm),
    pcp=mean(pcp),
-   soilt=mean(soilt)
+   soilt=mean(soilt),
+   pres=mean(pres)
  )
 zip_year_mete=zip_mete_record%>%group_by(ZIP,year)%>%summarise(
   uwnd=mean(uwnd),
@@ -42,7 +43,8 @@ zip_year_mete=zip_mete_record%>%group_by(ZIP,year)%>%summarise(
   snowc=mean(snowc),
   soilm=mean(soilm),
   pcp=mean(pcp),
-  soilt=mean(soilt)
+  soilt=mean(soilt),
+  pres=mean(pres)
 )
 zip_month_mete=zip_mete_record%>%group_by(ZIP,year,month)%>%summarise(
   uwnd=mean(uwnd),
@@ -54,7 +56,8 @@ zip_month_mete=zip_mete_record%>%group_by(ZIP,year,month)%>%summarise(
   snowc=mean(snowc),
   soilm=mean(soilm),
   pcp=mean(pcp),
-  soilt=mean(soilt)
+  soilt=mean(soilt),
+  pres=mean(pres)
 )
 
 radon_year_obs=zip_year_rn%>%
