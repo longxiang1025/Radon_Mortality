@@ -73,9 +73,9 @@ ma_lab_data=ma_lab_data%>%filter(Year>2003,Year<2020)
 pa_lab_data=pa_lab_data%>%filter(Year>2003,Year<2020)
 nc_lab_data=nc_lab_data%>%filter(Year>2003,Year<2020)
 #select the basement measurments
-nc_lab_data<-nc_lab_data%>%filter(FLOOR%in%c("basement","unknown"))
-ma_lab_data<-ma_lab_data%>%filter(Floor%in%c("Basement","Unknown"))
-pa_lab_data<-pa_lab_data%>%filter(Floor%in%c("Basement","Unknown"))
+nc_lab_data<-nc_lab_data%>%filter(FLOOR%in%c("basement"))
+ma_lab_data<-ma_lab_data%>%filter(Floor%in%c("Basement"))
+pa_lab_data<-pa_lab_data%>%filter(Floor%in%c("Basement"))
 # select measurement with reasonable duractions
 nc_lab_data$HOURS=as.numeric(as.character(nc_lab_data$HOURS))
 nc_lab_data=nc_lab_data[!is.na(nc_lab_data$HOURS),]

@@ -104,8 +104,8 @@ g<-ggplot()+
   geom_sf(data=gb_zip,aes(fill=G_Radon))+
   scale_fill_gradientn("Radon (pCi/L)",
                        colours = c("white","#fed800","#ff6f01","#fd2f24","#811d5e"),
-                       limits=c(0,5),
-                       breaks=c(0,1,2,4,5),
+                       limits=c(1,5),
+                       breaks=c(1,2,3,4,5),
                        na.value="lightgray")+
   ggtitle(paste0(y,"-",month_text))+
   theme(

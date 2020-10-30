@@ -69,7 +69,7 @@ load(here::here("Data","Medium Data","zipcode_coords.RData"))
 training_data=radon_month_obs
 training_data$timestamp=12*(training_data$Year-1990)+training_data$Month
 training_data=training_data%>%filter(Year>2004,Year<2019)
-training_data=training_data%>%filter(n_units>4)
+training_data=training_data%>%filter(n_units>9)
 training_data$dist2fault=as.numeric(training_data$dist2fault)
 training_data$gm_month=log(training_data$gm_month)
 training_data=as.data.frame(training_data)
@@ -166,7 +166,7 @@ if(id==4){
   prune=1
   m=caret::train(
     y=training_data$gm_month,
-    x=training_data[,features[c(1:21,23:83)]],
+    x=training_data[,features[c(1:24,26:29,31:88)]],
     weights=training_data$n_units,
     metric="Rsquare",
     trControl=control,
@@ -203,7 +203,7 @@ if(id==6){
   psi=para_list[[id]][in_id,"psi"]
   m=caret::train(
     y=training_data$gm_month,
-    x=training_data[,features[c(1:13,15:45,47:54,56:60,62:77,79:83)]],
+    x=training_data[,features[c(1:24,26:29,31:52,54:61,63:67,69:88)]],
     weights=training_data$n_units,
     metric="Rsquare",
     trControl=control,
