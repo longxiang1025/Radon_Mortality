@@ -15,7 +15,7 @@ gtwr_s<-function(obs,
   form=paste0("obs~b0+",form)
   for(p in 1:nrow(pred)){
     rnk=rank(dis.matrix[p,],ties.method = "first")
-    bw_st=dis.matrix[p,bw]
+    bw_st=dis.matrix[p,which(rnk==bw)]
     indx=which((dis.matrix[p,]<bw_st)&(dis.matrix[p,]>0))
     train_set=obs[indx,]
     bw_st=bw_st/2

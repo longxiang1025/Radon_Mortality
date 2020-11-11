@@ -43,7 +43,7 @@ projstring="+proj=aea +lat_1=20 +lat_2=60 +lat_0=23 +lon_0=-96 +x_0=0 +y_0=0 +el
 training_data=radon_month_obs
 training_data$timestamp=12*(training_data$Year-1990)+training_data$Month
 training_data=training_data%>%filter(Year>2004,Year<2019)
-training_data=training_data%>%filter(n_units>4)
+training_data=training_data%>%filter(n_units>9)
 training_data$dist2fault=as.numeric(training_data$dist2fault)
 training_data$gm_month=log(training_data$gm_month)
 training_data=as.data.frame(training_data)
@@ -106,62 +106,62 @@ set.seed(4321)
 # save(file=here::here("Data","Medium Data","Base_Model_Results.RData"),base_results)
 ##----------------Select base models based on the performance and diversity------------
 #load(here::here("Data","Medium Data","Base_Model_Results.RData"))
-##The top-level list containing base models of all type
- #  base_models=list()
- #  b_label=1
- #  for(t in unique(base_results$Type)){
- #  ##t mean type, it iterate through all five classes of base models
- #   bases=base_results%>%filter(Type==t)
- #   bases=bases%>%arrange(desc(CV_R2))
- #   base_tank=list()
- #   base_pred=list()
- #   load(here::here("Data","Medium Data","Model_List",as.character(bases[1,"f"])))
- #   base_tank[[1]]=m
- #   if(t=="Neural Networks with Feature Extraction"){
- #     pred=100*predict(base_tank[[1]],training_data)
- #   }else{
- #     pred=predict(base_tank[[1]],training_data)
- #   }
- #   base_pred[[1]]=pred
- #   l=2
- #   for(b_t in 2:nrow(bases)){
- #     load(here::here("Data","Medium Data","Model_List",as.character(bases[b_t,"f"])))
- #     if(t=="Neural Networks with Feature Extraction"){
- #       pred=100*predict(m,training_data)
- #     }else{
- #       pred=predict(m,training_data)
- #     }
- #     ##calculate the max R2 with selected models, if R2 is <0.9, add the new model in the list
- #     r=0
- #     for(b in 1:length(base_pred)){
- #       temp=cbind.data.frame(pred-training_data$gm_month,
- #                             base_pred[[b]]-training_data$gm_month,
- #                             training_data$n_units)
- #       names(temp)=c("pred","top_pred","w")
- #       r0=corr(temp[,c("pred","top_pred")],w=temp$w)
- #       if(r0>r){
- #         r=r0
- #       }
- #     }
- #     if((r<0.949)&(r>0.25)){
- #       print(paste("#",t,b_t,format(r,digits=4),as.character(bases[b_t,"f"]),"is used"))
- #       base_tank[[l]]=m
- #       base_pred[[l]]=pred
- #       l=l+1
- #     }
- #     else{
- #       print(paste("#",t,b_t,format(r,digits=4),as.character(bases[b_t,"f"]),"is very similar with top model(s)"))
- #     }
- #     if(l==4){
- #         break()
- #     }
- #   }
- #   for(temp in 1:length(base_tank)){
- #     base_models[[b_label]]=base_tank[[temp]]
- #     b_label=b_label+1
- #   }
- # }
- # save(file=here::here("Data","Medium Data","Selected_Base_Models.RData"),base_models)
+#The top-level list containing base models of all type
+#  base_models=list()
+#  b_label=1
+#  for(t in unique(base_results$Type)){
+#  ##t mean type, it iterate through all five classes of base models
+#   bases=base_results%>%filter(Type==t)
+#   bases=bases%>%arrange(desc(CV_R2))
+#   base_tank=list()
+#   base_pred=list()
+#   load(here::here("Data","Medium Data","Model_List",as.character(bases[1,"f"])))
+#   base_tank[[1]]=m
+#   if(t=="Neural Networks with Feature Extraction"){
+#     pred=100*predict(base_tank[[1]],training_data)
+#   }else{
+#     pred=predict(base_tank[[1]],training_data)
+#   }
+#   base_pred[[1]]=pred
+#   l=2
+#   for(b_t in 2:nrow(bases)){
+#     load(here::here("Data","Medium Data","Model_List",as.character(bases[b_t,"f"])))
+#     if(t=="Neural Networks with Feature Extraction"){
+#       pred=100*predict(m,training_data)
+#     }else{
+#       pred=predict(m,training_data)
+#     }
+#     ##calculate the max R2 with selected models, if R2 is <0.9, add the new model in the list
+#     r=0
+#     for(b in 1:length(base_pred)){
+#       temp=cbind.data.frame(pred-training_data$gm_month,
+#                             base_pred[[b]]-training_data$gm_month,
+#                             training_data$n_units)
+#       names(temp)=c("pred","top_pred","w")
+#       r0=corr(temp[,c("pred","top_pred")],w=temp$w)
+#       if(r0>r){
+#         r=r0
+#       }
+#     }
+#     if((r<0.949)&(r>0.25)){
+#       print(paste("#",t,b_t,format(r,digits=4),as.character(bases[b_t,"f"]),"is used"))
+#       base_tank[[l]]=m
+#       base_pred[[l]]=pred
+#       l=l+1
+#     }
+#     else{
+#       print(paste("#",t,b_t,format(r,digits=4),as.character(bases[b_t,"f"]),"is very similar with top model(s)"))
+#     }
+#     if(l==4){
+#         break()
+#     }
+#   }
+#   for(temp in 1:length(base_tank)){
+#     base_models[[b_label]]=base_tank[[temp]]
+#     b_label=b_label+1
+#   }
+# }
+# save(file=here::here("Data","Medium Data","Selected_Base_Models.RData"),base_models)
 ##----------------Build the final model--------------------------------------------
 
 # load(here::here("Data","Medium Data","Selected_Base_Models.RData"))
@@ -201,10 +201,15 @@ dist_matrix=st.dist(dp.locat = as.matrix(training_data[,c("X","Y")]),
 
 
 for(r in 1:3){
-  base_features=paste0("M",c(1:9),"_R",r,"_CV_Pred")
+  base_features=paste0("M",c(1:11,13),"_R",r,"_CV_Pred")
   pred_base=m_preds[,base_features]
   pred_base=cbind.data.frame(1,pred_base)
   names(pred_base)[1]="Intercept"
+  
+  base=m_preds[,paste0("M",c(1:11,13),"_Pred")]
+  base=cbind.data.frame(1,base)
+  names(base)[1]="Intercept"
+  
   
   ens_m<-gtwr_s(obs=m_preds,
                 pred=m_preds,
@@ -212,14 +217,21 @@ for(r in 1:3){
                 bw=bandwidth,
                 kernel = "gaussian",
                 dis.matrix = dist_matrix)
-  coefs=ens_m[,2:11]
-  pred=pred_base*coefs
+  coefs=ens_m[,2:14]
+  cv_pred=pred_base*coefs
+  cv_pred=rowSums(cv_pred)
+  
+  pred=base*coefs
   pred=rowSums(pred)
   
+  m_preds[,paste0("R",r,"_Ens_CV_Pred")]=cv_pred
   m_preds[,paste0("R",r,"_Ens_Pred")]=pred
+  
 }
 
+m_preds$Ens_CV_Pred=rowMeans(m_preds[,c("R1_Ens_CV_Pred","R2_Ens_CV_Pred","R3_Ens_CV_Pred")])
 m_preds$Ens_Pred=rowMeans(m_preds[,c("R1_Ens_Pred","R2_Ens_Pred","R3_Ens_Pred")])
+#save(file=here::here("Data","Medium Data","Final_Model_Performance.RData"),m_preds)
 
 load(here::here("Data","Medium Data","Ensemble_Tune_Result.RData"))
 parameters[sect_id,"R2"]=corr(m_preds[,c("Ens_Pred","obs")],w=m_preds$weights)

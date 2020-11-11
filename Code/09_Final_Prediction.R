@@ -61,7 +61,8 @@ for(i in 1:length(base_models)){
 }
 pred_bases=do.call(cbind,pred_bases)
 pred_bases=as.data.frame(pred_bases)
-names(pred_bases)=paste0("M",1:10,"_Pred")
+names(pred_bases)=paste0("M",1:13,"_Pred")
+pred_bases[,4:6]=100*pred_bases[,4:6]
 #calculate distance matrix between monthly level and trainning dataset
 load(here::here("Data","Medium Data","Ensemble_Training_Data.RData"))
 
@@ -74,15 +75,15 @@ dist_matrix=st.dist(dp.locat = as.matrix(pred_base[,c("X","Y")]),
 monthly_pred=as.data.frame(matrix(nrow=nrow(pred_bases),ncol=3))
 names(monthly_pred)=c("R1_Pred","R2_Pred","R3_Pred")
 for(r in 1:3){
-  bases=paste0("M",c(1:9),"_R",r,"_CV_Pred")
-  names(pred_bases)[1:9]=bases
+  bases=paste0("M",c(1:11,13),"_R",r,"_CV_Pred")
+  names(pred_bases)[c(1:11,13)]=bases
   gtwr_pred=gtwr_s(obs=m_preds,
                    pred = pred_bases,
                    bases = bases,
                    kernel = "gaussian",
                    dis.matrix = dist_matrix,
                    bw=bandwidth)
-  coefs=gtwr_pred[,2:11]
+  coefs=gtwr_pred[,2:14]
   pred=(cbind.data.frame(1,pred_bases[,bases]))*coefs
   pred=rowSums(pred)
   monthly_pred[,paste0("R",r,"_Pred")]=pred
@@ -96,23 +97,75 @@ save(file=here::here("Data","Medium Data","Monthly Prediction",paste0(y,"_",m,".
 library(sf)
 projstring="+proj=aea +lat_1=20 +lat_2=60 +lat_0=23 +lon_0=-96 +x_0=0 +y_0=0 +ellps=GRS80 +datum=WGS84 +units=m +no_defs +towgs84=0,0,0"
 load(here::here("Data","Medium Data","GB_ZIPCODE.RData"))
+load(here::here("Data","GeoData","2015_Shapes.RData"))
+load(here::here("Data","GeoData","Boundaries.RData"))
+load(here::here("Data","GeoData","Counties.RData"))
+
 gb_zip=gb_zip%>%left_join(monthly_prediction,by=c("ZIP"="ZIPCODE"))
+bound_sf<-st_as_sf(bound)
+county_sf<-st_as_sf(county)
+gb_county=county_sf%>%dplyr::filter(GEOID%in%c("25021",
+                                               "25023",
+                                               "25025",
+                                               "25009",
+                                               "25017",
+                                               "25005",
+                                               "25027",
+                                               "25001",
+                                               "33001",
+                                               "33011",
+                                               "33013",
+                                               "33015",
+                                               "33017",
+                                               "44001",
+                                               "44003",
+                                               "44005",
+                                               "44007",
+                                               "44009",
+                                               "09015"))
+gb_zip=st_intersection(gb_zip,gb_county)
+county_sf=st_intersection(county_sf,bound_sf)
 
 month_text=month.abb[m]
 
 g<-ggplot()+
-  geom_sf(data=gb_zip,aes(fill=G_Radon))+
-  scale_fill_gradientn("Radon (pCi/L)",
-                       colours = c("white","#fed800","#ff6f01","#fd2f24","#811d5e"),
-                       limits=c(1,5),
-                       breaks=c(1,2,3,4,5),
+  geom_sf(data=bound_sf,
+          aes(linetype="State",size="State",color="State"),fill="gray80",show.legend = T)+
+  geom_sf(data=gb_zip,aes(size="ZCTA",color="ZCTA",linetype="ZCTA",fill=G_Radon))+
+  geom_sf(data=county_sf,
+          aes(size="County",color="County",linetype="County"),fill=NA,show.legend = T)+
+  geom_sf(data=bound_sf,
+          aes(linetype="State",size="State",color="State"),fill=NA,show.legend = T)+
+  coord_sf(xlim=c(st_bbox(gb_zip)[1],st_bbox(gb_zip)[3]+0.25),ylim=c(st_bbox(gb_zip)[2]-0.35,st_bbox(gb_zip)[4]),clip = "on")+
+  scale_fill_gradientn("Indoor Radon (Bq/m3)",
+                       colours = c("white","#ffffb2","#fecc5c","#fd8d3c","#f03b20","#bd0026"),
+                       limits=c(0,7),
+                       breaks=c(1,2,3,4,5,7),
                        na.value="lightgray")+
   ggtitle(paste0(y,"-",month_text))+
+  scale_color_manual(NULL,breaks=c("ZCTA","County","State"),values = c("black","black","grey20"))+
+  scale_size_manual(NULL,breaks=c("ZCTA","County","State"),values = c(0.15,0.5,1))+
+  scale_linetype_manual(NULL,breaks=c("ZCTA","County","State"),values=c("solid","solid","solid"))+
+  guides(fill = guide_colourbar(direction = "horizontal",
+                                barwidth = 8.5, barheight = 1,title.position = "top",label.vjust=1),
+         color= guide_legend(label.position = "bottom",label.vjust=1))+
   theme(
-    legend.position = c(0.9,0.6),
-    legend.background = element_blank()
+    panel.background = element_rect(fill="aliceblue"),
+    panel.grid = element_line(size=1,linetype = "solid",color="aliceblue"),
+    panel.border = element_rect(size=2,fill = NA),
+    legend.position = c(0.5,0.05),
+    legend.background = element_rect(fill="white",color="black"),
+    legend.title = element_text(size=13),
+    legend.text = element_text(size=11),
+    legend.key.width =  unit(2.5,"lines"),
+    legend.key.height =  unit(1,"lines"),
+    legend.direction = "horizontal",
+    legend.box="horizontal",
+    legend.justification="bottom",
+    legend.margin = margin(1, 1, 1, 1),
+    axis.text = element_blank(),
+    axis.ticks = element_blank()
   )
-
 
 ggsave(file=here::here("Figures","Monthly_Prediction",paste0(y,"_",m,".jpg")),
        g,width=4,height =7,units = "in")
