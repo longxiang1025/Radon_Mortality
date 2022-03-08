@@ -1,6 +1,6 @@
 Data/
-.Rproj.user
-.Rhistory
-.png
-.csv
-.RData
+*.Rproj.user
+*.Rhistory
+*.png
+*.csv
+*.RData
