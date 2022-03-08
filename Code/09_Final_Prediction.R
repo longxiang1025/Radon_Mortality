@@ -1,7 +1,7 @@
 sect_id=as.numeric(Sys.getenv("Sim"))
 
 lamda=1e-5
-bandwidth=800
+bandwidth=1000
 
 m=1+sect_id%%12
 y=2005+as.integer(sect_id/12)
@@ -147,7 +147,7 @@ g<-ggplot()+
   scale_size_manual(NULL,breaks=c("ZCTA","County","State"),values = c(0.15,0.5,1))+
   scale_linetype_manual(NULL,breaks=c("ZCTA","County","State"),values=c("solid","solid","solid"))+
   guides(fill = guide_colourbar(direction = "horizontal",
-                                barwidth = 8.5, barheight = 1,title.position = "top",label.vjust=1),
+                                barwidth = 15, barheight = 1.5,title.position = "top",label.vjust=1),
          color= guide_legend(label.position = "bottom",label.vjust=1))+
   theme(
     panel.background = element_rect(fill="aliceblue"),

@@ -2,6 +2,7 @@
 #SBATCH -p serial_requeue
 #SBATCH -n 1
 #SBATCH --mem=18000
+#SBATCH --account=zanobetti_lab
 #SBATCH -t 1280
 #SBATCH -e /n/holyscratch01/koutrakis_lab/Users/loli/log/log_error/Rn_%A_%a.err
 #SBATCH -o /n/holyscratch01/koutrakis_lab/Users/loli/log/log_rn_model/Model_%A_%a.out # Standard output
@@ -13,6 +14,6 @@ Sim=${SLURM_ARRAY_TASK_ID}
 
 export Sim
 
-Rscript --quiet --no-restore --no-save /n/holyscratch01/koutrakis_lab/Users/loli/code/22_Train_Regional_Base_Models.R
+Rscript --quiet --no-restore --no-save /n/holyscratch01/koutrakis_lab/Users/loli/code/23_Select_Base_Models.R
 
 sleep 3 # pause to be kind to the scheduler

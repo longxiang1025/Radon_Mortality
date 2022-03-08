@@ -106,10 +106,23 @@ ma_lab_data=ma_lab_data_date%>%left_join(ma_lab_data)
 
 pa_lab_data_date=pa_lab_data%>%group_by(Checksum_TestAddress)%>%summarise(StartDate=min(StartDate))
 pa_lab_data=pa_lab_data_date%>%left_join(pa_lab_data)
-#Exclude measurments below detection limit
-nc_lab_data=nc_lab_data%>%filter(PCI.L>0.2,PCI.L<200)
-ma_lab_data=ma_lab_data%>%filter(PCI.L>0.4,PCI.L<200)
-pa_lab_data=pa_lab_data%>%filter(PCI.L>0.4,PCI.L<200)
+#Handle measurments below detection limit
+set.seed(12345)
+b_nc_lab_data=nc_lab_data%>%filter(PCI.L<0.4)
+b_nc_lab_data$PCI.L=rnorm(nrow(b_nc_lab_data),mean=0.2,sd=0.05)
+a_nc_lab_data=nc_lab_data%>%filter(PCI.L>=0.4,PCI.L<200)
+nc_lab_data=bind_rows(a_nc_lab_data,b_nc_lab_data)
+
+b_ma_lab_data=ma_lab_data%>%dplyr::filter(PCI.L<0.4)
+b_ma_lab_data$PCI.L=rnorm(nrow(b_ma_lab_data),mean=0.2,sd=0.05)
+a_ma_lab_data=ma_lab_data%>%filter(PCI.L>=0.4,PCI.L<200)
+ma_lab_data=bind_rows(b_ma_lab_data,a_ma_lab_data)
+
+b_pa_lab_data=pa_lab_data%>%filter(PCI.L<0.4)
+b_pa_lab_data$PCI.L=rnorm(nrow(b_pa_lab_data),mean=0.2,sd=0.05)
+a_pa_lab_data=pa_lab_data%>%filter(PCI.L>=0.4,PCI.L<200)
+pa_lab_data=bind_rows(b_pa_lab_data,a_pa_lab_data)
+
 #Merge them together
 nc_lab_data$Type="AirChek"
 ma_lab_data$Type="AccuStar"
@@ -136,6 +149,7 @@ trans<-cbind.data.frame(Month=1:12,
 ne_radon=ne_radon%>%left_join(trans)
 #The winter months (Jan Feb) in the new year are merged with previous year
 ne_radon$Season_Year=ifelse(ne_radon$Month<3,ne_radon$Year-1,ne_radon$Year)
+ne_radon[ne_radon$PCI.L<=0,"PCI.L"]=0.2
 #the number of records in each zipcode
 zip_season<-ne_radon%>%
   group_by(Season_Year,Season,ZIPCODE)%>%

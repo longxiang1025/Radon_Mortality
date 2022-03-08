@@ -3,16 +3,20 @@ library(here)
 library(ggplot2)
 library(purrr)
 
+FIPS_List=c("25001","25005","25009","25017","25021",
+            "25023","25027","33017","33015",
+            "33013","33011","33001","44003","44005","44007")
+
 load(here::here("Data","Medium Data","zipcode_mortality_NE_2nd.RData"))
-load(here::here("Data","Medium Data","Pred_Rn_Data.RData"))
+load(here::here("Data","Medium Data","Pred_Rn_Data2.RData"))
 load(here::here("Data","Medium Data","Monthly_Mete.RData"))
 load(here::here("Data","Medium Data","zipcode_admission_NE_2nd.RData"))
 #load(here::here("Data","GeoData","2015_Shapes.RData"))
 load(here::here("Data","Env_Exp.RData"))
 #zips_sf<-st_as_sf(zips)
 #Out of 10127 zipcodes, only 1492 zipcodes have predicted Rn Data
-pred_data<-pred_data%>%filter(POP_SQMI<8000)
-pred_data<-pred_data%>%group_by(Year,ZIPCODE)%>%summarise(Rn_Adj=mean(Rn_Adj))
+#pred_data<-pred_data%>%filter(POP_SQMI<8000)
+pred_data<-radon_pred%>%group_by(Year,ZIPCODE)%>%summarise(Rn=mean(G_Radon))
 pred_data$Year=as.numeric(as.character(pred_data$Year))
 #pred_data$Year=1996+pred_data$Year
 pred_data=pred_data%>%left_join(env_exp%>%dplyr::select(year,ZIP,pm25,education,poverty,popdensity,medhouseholdincome,medianhousevalue,pct_owner_occ),by=c("Year"="year","ZIPCODE"="ZIP"))
@@ -36,27 +40,37 @@ mortality_data=mortality_data%>%left_join(mete_data,by=c("zipcode"="ZIP","year"=
 #This is the crude model without 
 data=mortality_data%>%left_join(pred_data,by=c("year"="Year","zipcode"="ZIPCODE"))
 #data=data%>%left_join(env_exp)
-data=data%>%filter(!is.na(Rn_Adj))
+data=data%>%filter(!is.na(Rn))
 library(mgcv)
+library(lme4)
 library(betareg)
 library(metafor)
 data$year=as.factor(data$year)
 data$zipcode=as.factor(data$zipcode)
 data$FIPS=as.factor(data$FIPS)
-data=data%>%filter(!is.na(Rn_Adj))
+data=data%>%filter(!is.na(Rn))
 
-data$log_rn=log2(data$Rn_Adj)
+data$log_rn=log2(data$Rn)
 
 temp_data=data%>%filter(n>200)
 FIPS_list=temp_data%>%group_by(FIPS)%>%summarise(n=n_distinct(zipcode),n_year=n_distinct(year))
 FIPS_list=FIPS_list%>%filter(n>5,n_year>2)
 
-full_test=data%>%filter(FIPS%in%FIPS_list$FIPS,
-                        as.numeric(as.character(year))<2016,
-                        as.numeric(as.character(year))>1999)%>%
-  group_by(FIPS)%>%summarise(est=coef(glm(cbind(death,n)~Rn_Adj+pm25+age+female+white+medicaid+w_temp+s_temp+year+zipcode,
+data=data[data$FIPS%in%FIPS_List,]
+data=data[data$popdensity<8000,]
+
+data$medhouseholdincome=(data$medhouseholdincome-mean(data$medhouseholdincome))/sd(data$medhouseholdincome)
+data$medianhousevalue=(data$medianhousevalue-mean(data$medianhousevalue))/sd(data$medianhousevalue)
+
+m=glmer(cbind(death,n)~Rn+pm25+age+female+white+medicaid+w_temp+s_temp+education+poverty+medhouseholdincome+year+(1|zipcode),
+      family="binomial",data=data)
+summary(m)
+
+full_test=data%>%filter(as.numeric(as.character(year))<2016,
+                        as.numeric(as.character(year))>2004)%>%
+  group_by(FIPS)%>%summarise(est=coef(glm(cbind(death,n)~Rn+year+zipcode,
                                           family="binomial"))[2],
-                             sd=sqrt(vcov(glm(cbind(death,n)~Rn_Adj+pm25+age+female+white+medicaid+w_temp+s_temp+year+zipcode,
+                             sd=sqrt(vcov(glm(cbind(death,n)~Rn+year+zipcode,
                                               family="binomial"))[2,2]),
                              n=sum(n))
 full_meta=rma(yi=est,sei=sd,weights = n,data=full_test)

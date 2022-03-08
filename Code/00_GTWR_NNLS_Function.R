@@ -20,7 +20,7 @@ gtwr_s<-function(obs,
     train_set=obs[indx,]
     bw_st=bw_st/2
     wi=exp(-.5*(dis.matrix[p,indx]/bw_st)^2)
-    wi=wi*train_set[,"weights"]
+    wi=wi*as.numeric(train_set[,"weights"])
     wi=wi/max(wi)
     model_status=try({
       m=nls(as.formula(form),

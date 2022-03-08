@@ -136,22 +136,25 @@ temp=counties%>%left_join(temp_spring)%>%
   left_join(temp_autumn)%>%
   left_join(temp_winter)
 
+write.csv(temp,file="season_accuracy.csv")
+
 #this table for the patterns in observations
 temp=m_preds%>%group_by(fips,Season)%>%summarise(
   m=mean(obs),
+  v=sd(obs),
   n=length(ZIPCODE)
 )
 counties=m_preds%>%group_by(fips)%>%summarise(n=length(fips))
 
 temp=temp[temp$n>2,]
-temp_spring=temp[temp$Season=="Spring",c("fips","m")]
-names(temp_spring)=c("fips","spring")
-temp_summer=temp[temp$Season=="Summer",c("fips","m")]
-names(temp_summer)=c("fips","summer")
-temp_autumn=temp[temp$Season=="Autumn",c("fips","m")]
-names(temp_autumn)=c("fips","autumn")
-temp_winter=temp[temp$Season=="Winter",c("fips","m")]
-names(temp_winter)=c("fips","winter")
+temp_spring=temp[temp$Season=="Spring",c("fips","m","v","n")]
+names(temp_spring)=c("fips","spring","sp_v","sp_n")
+temp_summer=temp[temp$Season=="Summer",c("fips","m","v","n")]
+names(temp_summer)=c("fips","summer","sm_v","sm_n")
+temp_autumn=temp[temp$Season=="Autumn",c("fips","m","v","n")]
+names(temp_autumn)=c("fips","autumn","at_v","at_n")
+temp_winter=temp[temp$Season=="Winter",c("fips","m","v","n")]
+names(temp_winter)=c("fips","winter","wt_v","wt_n")
 
 temp=counties%>%left_join(temp_spring)%>%
   left_join(temp_summer)%>%

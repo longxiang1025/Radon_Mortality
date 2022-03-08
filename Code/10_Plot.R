@@ -155,7 +155,8 @@ ggplot()+
 ##---------------------Figure 2 County Specific Summary-------------------
 ne_radon=ne_radon%>%filter(COUNTY%in%gb_county$NAME)
 ne_radon$COUNTY=as.factor(as.character(ne_radon$COUNTY))
-county_summary=ne_radon%>%group_by(COUNTY,STATE)%>%summarise(gm=exp(mean(log(PCI.L))),
+ne_radon$kit=paste0(ne_radon$Type,ne_radon$METHOD)
+county_summary=ne_radon%>%group_by(COUNTY,STATE,kit)%>%summarise(gm=exp(mean(log(PCI.L))),
                                                              am=mean(PCI.L),
                                                              qn_1st=quantile(PCI.L,0.25),
                                                              qn_3rd=quantile(PCI.L,0.75),
@@ -165,44 +166,66 @@ county_summary$label=paste0(county_summary$COUNTY,",",county_summary$STATE)
 county_summary=county_summary%>%arrange(desc(STATE),count)
 county_summary$label=factor(county_summary$label,levels=county_summary$label)
 
-ggplot(data = county_summary)+
-  geom_errorbarh(aes(xmin=37*qn_1st,xmax=37*qn_3rd,y=label))+
-  geom_point(aes(x=37*gm,y=label,color="GM",shape="GM"),size=4)+
-  geom_point(aes(x=37*am,y=label,color="AM",shape="AM"),size=4)+
-  geom_text(aes(x=37*qn_3rd+50,y=label,label=paste0("(",count," obs)")))+
-  scale_color_manual("Legend",breaks=c("AM","GM"),
-                     values=c("Navy","Navy"),
-                     labels=c("Arithmetic Mean","Geometric Mean"))+
-  scale_shape_manual("Legend",breaks=c("AM","GM"),
-                     values=c(0,15),
-                     labels=c("Arithmetic Mean","Geometric Mean"))+
+ggplot()+
+  geom_errorbarh(data = county_summary%>%filter(kit=="AirChekAC"),aes(xmin=37*qn_1st,xmax=37*qn_3rd,y=label),height=0.3)+
+  geom_point(data = county_summary%>%filter(kit=="AirChekAC"),aes(x=37*gm,y=label,color="AirChekAC",shape="AirChekAC"),size=4)+
+  geom_text(data = county_summary%>%filter(kit=="AirChekAC"),aes(x=37*qn_3rd+50,y=label,label=paste0("(",count," obs)")))+
+  geom_errorbarh(data = county_summary%>%filter(kit=="AccuStarLS"),aes(xmin=37*qn_1st,xmax=37*qn_3rd,y=label),position = position_nudge(y = -0.25),height=0.3)+
+  geom_point(data = county_summary%>%filter(kit=="AccuStarLS"),aes(x=37*gm,y=label,color="AccuStarLS",shape="AccuStarLS"),size=4,position = position_nudge(y = -0.25))+
+  geom_text(data = county_summary%>%filter(kit=="AccuStarLS"),aes(x=37*qn_3rd+50,y=label,label=paste0("(",count," obs)")),position = position_nudge(y = -0.25))+
+  geom_errorbarh(data = county_summary%>%filter(kit=="AccuStarAC"),aes(xmin=37*qn_1st,xmax=37*qn_3rd,y=label),position = position_nudge(y = 0.25),height=0.3)+
+  geom_point(data = county_summary%>%filter(kit=="AccuStarAC"),aes(x=37*gm,y=label,color="AccuStarAC",shape="AccuStarAC"),size=4,position = position_nudge(y = 0.25))+
+  geom_text(data = county_summary%>%filter(kit=="AccuStarAC"),aes(x=37*qn_3rd+50,y=label,label=paste0("(",count," obs)")),position = position_nudge(y = 0.25))+
+  scale_color_manual("Legend",breaks=c("AirChekAC","AccuStarAC","AccuStarLS"),
+                     values=c("Navy","Navy","Navy"),
+                     labels=c("AirChek","AccuStar PicoCan-400 ","Niton CLS-2"))+
+  scale_shape_manual("Legend",breaks=c("AirChekAC","AccuStarAC","AccuStarLS"),
+                     values=c(15,16,17),
+                     labels=c("AirChek","AccuStar PicoCan-400 ","Niton CLS-2"))+
   xlim(0,500)+
   xlab("County-level Basement Rn Level (Bq/m3)")+
   theme_bw()+
   theme(
     axis.title.y = element_blank(),
     axis.text = element_text(size=12),
-    legend.position = c(0.8,0.9)
+    legend.position = c(0.9,0.8)
   )
 
 ##---------------------Figure 3 Scatter Plot----------------------------
 library(MASS)
-load(here::here("Data","Medium Data","Final_Model_Performance.RData"))
-m_preds=m_preds%>%arrange((weights))
+library(dplyr)
+library(boot)
+library(ggplot2)
 
-m_preds$obs=37*exp(m_preds$obs)
-m_preds$Ens_Pred=37*exp(m_preds$Ens_Pred)
-m=rlm(obs~0+Ens_Pred,weights = m_preds$weights,data=m_preds)
-ggplot(data=m_preds%>%filter(weights>9))+
-  geom_point(aes(x=obs,y=Ens_Pred,size=weights),fill="#B22234",shape=21,color="gray75")+
+cv_files=list.files(here::here("Data","Medium Data","Real_CV"),full.names = T)
+
+cv_results=list()
+
+for(f in 1:length(cv_files)){
+  load(cv_files[f])
+  cv_results[[f]]=test_set[,c("pred","gm_month","n_units","X","Y","fold","rowIndex")]
+}
+
+cv_results=bind_rows(cv_results)
+cv_results=cv_results%>%group_by(rowIndex)%>%summarise(obs=mean(gm_month),
+                                                       pred=mean(pred),
+                                                       res=var(pred,na.rm=T),
+                                                       n_units=mean(n_units),
+                                                       X=mean(X),
+                                                       Y=mean(Y))
+cv_results$obs=37*exp(cv_results$obs)
+cv_results$pred=37*exp(cv_results$pred)
+m=rlm(obs~0+pred,weights = cv_results$n_units,data=cv_results)
+ggplot(data=cv_results%>%filter(n_units>9))+
+  geom_point(aes(x=obs,y=pred,size=n_units),fill="#B22234",shape=21,color="gray75")+
   geom_abline(intercept = 0,slope = m$coefficients[1],linetype="solid",color="#3C3B6E",size=1)+
   geom_abline(intercept = 0,slope = 1,linetype="dashed",size=0.75)+
-  xlab("Observed Monthly ZCTA-level Rn Concentrations (Bq/m3)")+
-  ylab("Estimated Monthly ZCTA-level Rn Concentrations (Bq/m3)")+
+  xlab("Observed Monthly ZCTA-level Radon Concentrations (Bq/m3)")+
+  ylab("Estimated Monthly ZCTA-level Radon Concentrations (Bq/m3)")+
   scale_radius("Count of Short-term Measurements",
-               breaks = c(10,25,75,150),
-               labels = c(10,25,75,150),
-               range = c(0.5,6.5),
+               breaks = c(10,25,75,150,200),
+               labels = c(10,25,75,150,200),
+               range = c(0.25,7.5),
                trans = "log")+
   coord_cartesian(xlim=c(30,250),ylim=c(30,250))+
   theme_bw()+
@@ -252,9 +275,9 @@ season_plot=function(level,season,legend.position="none"){
     coord_sf(xlim=c(st_bbox(gb_zip)[1],st_bbox(gb_zip)[3]),ylim=c(st_bbox(gb_zip)[2],st_bbox(gb_zip)[4]),clip = "on")+
     scale_fill_gradientn("Bq/m3",
                          colours = c("white","#ffffb2","#fecc5c","#fd8d3c","#f03b20","#bd0026"),
-                         values=c(0,0.3,0.4,0.5,0.65,1),
-                         labels=c(0,50,75,100,125,250),
-                         limits=c(0,250),
+                         values=c(0,0.45,0.5,0.65,1),
+                         labels=c(0,50,100,125,150),
+                         limits=c(0,175),
                          na.value="lightgray")+
     ggtitle(season)+
     scale_color_manual(NULL,breaks=c("ZCTA","County","State"),values = c("black","black","grey20"))+
@@ -283,6 +306,7 @@ season_plot=function(level,season,legend.position="none"){
 }
 
 spring_plot=season_plot(spring_level,season = "Spring",legend.position = c(0.5,0.5))
+Annual_plot=season_plot(season_level,season = "Annual",legend.position = c(0.9,0.95))
 summer_plot=season_plot(summer_level,season = "Summer",legend.position = "none")
 autumn_plot=season_plot(autumn_level,season = "Autumn",legend.position = "none")
 winter_plot=season_plot(winter_level,season = "Winter",legend.position = "none")
@@ -303,16 +327,18 @@ g<-ggplot()+
   geom_sf(data=bound_sf,
           aes(linetype="State",size="State",color="State"),fill="gray80",show.legend = T)+
   geom_sf(data=plot_data,
-          aes(size="County",color="County",linetype="County",fill=100*AMest),show.legend = T)+
+          aes(size="County",color="County",linetype="County",fill=100*GMest),show.legend = T)+
   geom_sf(data=gb_zip,aes(size="ZCTA",color="ZCTA",linetype="ZCTA"),fill=NA)+
+  geom_sf(data=county_sf,
+          aes(size="County",color="County",linetype="County"),fill=NA,show.legend = F)+
   geom_sf(data=bound_sf,
           aes(linetype="State",size="State",color="State"),fill=NA,show.legend = F)+
   coord_sf(xlim=c(st_bbox(gb_zip)[1],st_bbox(gb_zip)[3]),ylim=c(st_bbox(gb_zip)[2],st_bbox(gb_zip)[4]),clip = "on")+
   scale_fill_gradientn("Bq/m3",
                        colours = c("white","#ffffb2","#fecc5c","#fd8d3c","#f03b20","#bd0026"),
-                       values=c(0,0.3,0.4,0.5,0.65,1),
-                       labels=c(0,50,75,100,125,250),
-                       limits=c(0,250),
+                       values=c(0,0.45,0.5,0.65,1),
+                       labels=c(0,50,100,125,150),
+                       limits=c(0,175),
                        na.value="lightgray")+
   scale_color_manual(NULL,breaks=c("ZCTA","County","State"),values = c("black","black","grey20"))+
   scale_size_manual(NULL,breaks=c("ZCTA","County","State"),values = c(0.15,0.5,1))+
@@ -323,7 +349,7 @@ g<-ggplot()+
     panel.background = element_rect(fill="aliceblue"),
     panel.grid = element_line(size=1,linetype = "solid",color="aliceblue"),
     panel.border = element_rect(size=2,fill = NA),
-    legend.position = c(0.8,0.8),
+    legend.position = c(0.5,0.5),
     legend.background = element_rect(fill="white",color="black"),
     legend.title = element_text(size=13),
     legend.text = element_text(size=11),
@@ -335,8 +361,25 @@ g<-ggplot()+
     axis.text = element_blank(),
     axis.ticks = element_blank()
   )
+#compare LBNL with our prediction
+annual_level=prediction_tank%>%group_by(ZIP)%>%summarise(m=37*mean(G_Radon))
+annual_plot=season_plot(spring_level,season = NULL,legend.position = "none")
 
+g<-cowplot::plot_grid(annual_plot,g,nrow = 1,labels = c("A","B"))
+save_plot(file=here::here("Prediction_Comparison.pdf"),plot=g,
+          base_height=4.5,base_width=7,device = cairo_pdf)
 
+#
+load(here::here("Data","GeoData","FIPS_ZIPCODE_Crosswalk.RData"))
+annual_level=annual_level%>%left_join(FIPS_ZIPCODE_TABLE,by=c("ZIP"="zips"))
+fips_level=annual_level%>%group_by(fips)%>%summarise(m=mean(m,na.rm=T),
+                                                     n=length(fips))
+fips_pred=fips_level[fips_level$n>2,]
+fips_pred=fips_pred%>%left_join(plot_data[,c("GEOID","GMest")],by=c("fips"="GEOID"))
+
+fips_pred=fips_pred%>%group_by(fips)%>%summarise(pred=mean(m),
+                                                 lbnl=mean(GMest,na.rm=T))
+write.csv(fips_pred,file="fips_pred.csv")
 ##--------------------Plot the seasonal variation map-----------------------
 temp=cbind.data.frame(spring_level[,c("ZIP","m"),],
                       summer_level[,"m"],

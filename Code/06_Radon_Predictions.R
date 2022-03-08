@@ -1,5 +1,3 @@
-sect_id<-as.numeric(Sys.getenv("Sim"))
-
 library(dplyr)
 library(tidyr)
 library(here)
