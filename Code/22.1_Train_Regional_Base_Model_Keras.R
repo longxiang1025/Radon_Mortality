@@ -11,8 +11,8 @@ library(tensorflow)
 library(tfdatasets)
 use_condaenv('/n/home02/loli/.conda/envs/Radon')
 
-load(paste0("/n/koutrakis_lab/lab/Radon_Mortality/Data/Medium Data/Scratch_Copies/Regional_Training_",random_num=sample(1:5,1),".RData"))
-load("/n/koutrakis_lab/lab/Radon_Mortality/Data/Medium Data/Regional_CV_Folds.RData")
+load(paste0("/n/koutrakis_lab/lab/Radon_Mortality/Data/Medium Data/NE_MW_Regional_Model_Data/Scratch_Copies/Regional_Training_",random_num=sample(1:5,1),".RData"))
+load("/n/koutrakis_lab/lab/Radon_Mortality/Data/Medium Data/NE_MW_Regional_Model_Data/Regional_CV_Folds.RData")
 
 all_data=training_data
 all_data$geometry=NULL
@@ -37,7 +37,7 @@ numeric_feature=features[c(1:7,9:85)]
 # keras_para_table=keras_para_table%>%dplyr::filter((decay+(lamda>0))%in%c(0,2))
 # # 
 # save(file="/n/koutrakis_lab/lab/Radon_Mortality/Data/Medium Data/Regional_Keras_ParaTable.RData",keras_para_table)
-load(file="/n/koutrakis_lab/lab/Radon_Mortality/Data/Medium Data/Regional_Keras_ParaTable.RData")
+load(file="/n/koutrakis_lab/lab/Radon_Mortality/Data/Medium Data/NE_MW_Regional_Model_Data/Regional_Keras_ParaTable.RData")
 
 build_model <- function(layer_string="8_8_8",act_function="relu",dropout=T,decay=T,d_rate=0.3,lamda=0.01) {
   input <- layer_input_from_dataset(training_data[,features[-8]])

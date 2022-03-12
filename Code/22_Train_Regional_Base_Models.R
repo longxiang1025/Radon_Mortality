@@ -27,10 +27,10 @@ weight_summary<-function(data, lev = NULL, model = NULL){
   return(v)
 }
 
-load("/n/koutrakis_lab/lab/Radon_Mortality/Data/Medium Data/Regional_ParaList.RData")
-load("/n/koutrakis_lab/lab/Radon_Mortality/Data/Medium Data/Regional_ParaTable.RData")
-load(paste0("/n/koutrakis_lab/lab/Radon_Mortality/Data/Medium Data/Scratch_Copies/Regional_Training_",random_num=sample(1:5,1),".RData"))
-load("/n/koutrakis_lab/lab/Radon_Mortality/Data/Medium Data/Regional_CV_Folds.RData")
+load("/n/koutrakis_lab/lab/Radon_Mortality/Data/Medium Data/NE_MW_Regional_Model_Data/Regional_ParaList.RData")
+load("/n/koutrakis_lab/lab/Radon_Mortality/Data/Medium Data/NE_MW_Regional_Model_Data/Regional_ParaTable.RData")
+load(paste0("/n/koutrakis_lab/lab/Radon_Mortality/Data/Medium Data/NE_MW_Regional_Model_Data/Scratch_Copies/Regional_Training_",random_num=sample(1:5,1),".RData"))
+load("/n/koutrakis_lab/lab/Radon_Mortality/Data/Medium Data/NE_MW_Regional_Model_Data/Regional_CV_Folds.RData")
 
 all_data=training_data
 all_data$geometry=NULL
@@ -255,6 +255,7 @@ for(r in c(3*rum, 3*rum+1, 3*rum+2)){
     
     #Extract the CV Prediction of the Base Model
     if(id==6){
+      m$pred$rowIndex=training_data_knn$rowIndex[m$pred$rowIndex]
       cv_pred_base=bind_rows(m$pred,validation_data_pred)
       cv_pred_base=cv_pred_base%>%arrange(rowIndex)
     }else{
