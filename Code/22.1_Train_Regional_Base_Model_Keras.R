@@ -17,8 +17,8 @@ load("/n/koutrakis_lab/lab/Radon_Mortality/Data/Medium Data/NE_MW_Regional_Model
 all_data=training_data
 all_data$geometry=NULL
 all_data$Basement=as.numeric(all_data$Basement)
-features=names(all_data)[c(3:5,9:12,14:91)]
-numeric_feature=features[c(1:7,9:85)]
+features=names(all_data)[c(3:5,9:14,16:20,22:78,81:93)]
+numeric_feature=features[c(1:9,11:84)]
 
 # keras_layer_string=c("64_32_8","64_32_4","64_16_8","64_16_4","64_8_8","64_8_4","64_4_4","64_8","64_4","64",
 #                      "32_32_8","32_32_4","32_16_8","32_16_4","32_8_8","32_8_4","32_4_4","32_8","32_4","32",
@@ -40,7 +40,7 @@ numeric_feature=features[c(1:7,9:85)]
 load(file="/n/koutrakis_lab/lab/Radon_Mortality/Data/Medium Data/NE_MW_Regional_Model_Data/Regional_Keras_ParaTable.RData")
 
 build_model <- function(layer_string="8_8_8",act_function="relu",dropout=T,decay=T,d_rate=0.3,lamda=0.01) {
-  input <- layer_input_from_dataset(training_data[,features[-8]])
+  input <- layer_input_from_dataset(training_data[,numeric_feature])
   units=stringr::str_split(layer_string,pattern = "_",simplify = T)
   units=as.numeric(units)
   output <- input %>% 
@@ -80,7 +80,7 @@ n_base=nrow(keras_para_table)
 for( r in c(3*rnum,3*rnum+1, 3*rnum+2)){
   sect_id=1+r%%n_base
   Fold=1+as.integer(r/n_base)
-  if(file.exists(paste0("/n/holyscratch01/koutrakis_lab/Users/loli/Radon_Base_CV/",Fold,"/",5050+r,"_",Fold,"_",8,"_",sect_id,".RData"))){
+  if(file.exists(paste0("/n/holyscratch01/koutrakis_lab/Users/loli/Radon_Base_CV/",Fold,"/",5010+r,"_",Fold,"_",8,"_",sect_id,".RData"))){
     print(paste0(r," has been done!"))
   }else{
     
@@ -103,7 +103,7 @@ for( r in c(3*rnum,3*rnum+1, 3*rnum+2)){
       #For each iteration, train the model and predit on its own
       keras_training_data=training_data[train_validation_split[[i]],]
       keras_validation_data=training_data[-train_validation_split[[i]],]
-      spec <- feature_spec(data=keras_training_data,x=features[-8],y="Mean_Conc") %>% 
+      spec <- feature_spec(data=keras_training_data,x=numeric_feature,y="Mean_Conc") %>% 
         step_numeric_column(all_numeric(), normalizer_fn = scaler_standard()) %>% 
         fit()
       model <- build_model(layer_string = layer_string,
@@ -111,7 +111,7 @@ for( r in c(3*rnum,3*rnum+1, 3*rnum+2)){
                            decay = decay,
                            lamda=lamda)
       model %>% fit(
-        x = keras_training_data[,features[-8]],
+        x = keras_training_data[,numeric_feature],
         y = keras_training_data$Mean_Conc,
         sample_weight=keras_training_data$N,
         epochs = 100,
@@ -119,7 +119,7 @@ for( r in c(3*rnum,3*rnum+1, 3*rnum+2)){
         verbose = 0,
         batch_size=1028)
       
-      keras_validation_predict=model%>%predict(keras_validation_data[,features[-8]])
+      keras_validation_predict=model%>%predict(keras_validation_data[,numeric_feature])
       rowIndex=1:nrow(training_data)
       rowIndex=rowIndex[-train_validation_split[[i]]]
       keras_validation_perf=cbind.data.frame(rowIndex,keras_validation_data$Mean_Conc,
@@ -139,7 +139,7 @@ for( r in c(3*rnum,3*rnum+1, 3*rnum+2)){
     
     #Re-fit the model on the whole training dataset
     model %>% fit(
-      x = training_data[,features[-8]],
+      x = training_data[,numeric_feature],
       y = training_data$Mean_Conc,
       sample_weight=training_data$N,
       epochs = 100,
@@ -147,7 +147,7 @@ for( r in c(3*rnum,3*rnum+1, 3*rnum+2)){
       verbose = 0,
       batch_size=1028)
     
-    test_pred=model%>%predict(test_data[,features[-8]])
+    test_pred=model%>%predict(test_data[,numeric_feature])
     base_test=cbind.data.frame(test_pred,test_data[,c("ZIPCODE","Month","Year","N","Mean_Conc","SD_Conc")])
     base_test$id=8
     base_test$in_id=sect_id
@@ -157,7 +157,7 @@ for( r in c(3*rnum,3*rnum+1, 3*rnum+2)){
     if(!dir.exists(paste0("/n/holyscratch01/koutrakis_lab/Users/loli/Radon_Base_CV/",Fold))){
       dir.create(paste0("/n/holyscratch01/koutrakis_lab/Users/loli/Radon_Base_CV/",Fold))
     }
-    save(file=paste0("/n/holyscratch01/koutrakis_lab/Users/loli/Radon_Base_CV/",Fold,"/",5050+r,"_",Fold,"_",8,"_",in_id,".RData"),
+    save(file=paste0("/n/holyscratch01/koutrakis_lab/Users/loli/Radon_Base_CV/",Fold,"/",5010+r,"_",Fold,"_",8,"_",in_id,".RData"),
          cv_pred_base,base_test)  
   }
 }

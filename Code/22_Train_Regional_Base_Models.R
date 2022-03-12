@@ -4,7 +4,7 @@
 #A follow-up script (23_XXX) will compare the CV pred of these 300+ base models, pick the top different
 # base models and use two parameters (lamda and N) to ensemble them.
 #The other output of this script is the prediction of each record in the remaining 10% in the fold
-#rum range from 0 to 5049 (10*505-1)
+#rum range from 0 to 5009 (10*501-1)
 rum<-as.numeric(Sys.getenv("Sim"))
 #setwd("/n/koutrakis_lab/lab/Radon_Mortality/")
 
@@ -29,14 +29,15 @@ weight_summary<-function(data, lev = NULL, model = NULL){
 
 load("/n/koutrakis_lab/lab/Radon_Mortality/Data/Medium Data/NE_MW_Regional_Model_Data/Regional_ParaList.RData")
 load("/n/koutrakis_lab/lab/Radon_Mortality/Data/Medium Data/NE_MW_Regional_Model_Data/Regional_ParaTable.RData")
-load(paste0("/n/koutrakis_lab/lab/Radon_Mortality/Data/Medium Data/NE_MW_Regional_Model_Data/Scratch_Copies/Regional_Training_",random_num=sample(1:5,1),".RData"))
+load(paste0("/n/koutrakis_lab/lab/Radon_Mortality/Data/Medium Data/NE_MW_Regional_Model_Data/Scratch_Copies/Regional_Training_",random_num=sample(1:10,1),".RData"))
 load("/n/koutrakis_lab/lab/Radon_Mortality/Data/Medium Data/NE_MW_Regional_Model_Data/Regional_CV_Folds.RData")
 
 all_data=training_data
 all_data$geometry=NULL
 all_data$Basement=as.numeric(all_data$Basement)
-features=names(all_data)[c(3:5,9:12,14:91)]
-numeric_feature=features[c(1:7,9:85)]
+#Manually remove the collinear columns
+features=names(all_data)[c(3:5,9:14,16:20,22:78,81:93)]
+numeric_feature=features[c(1:9,11:84)]
 
 n_base=nrow(para_table)
 
@@ -62,15 +63,15 @@ for(r in c(3*rum, 3*rum+1, 3*rum+2)){
     #save(file=here::here("Data","Medium Data","Regional_CV_Folds.RData"),indexPreds)
     
     # #Create the parameter table for 300+ base models------------------------------------------------
-    # #random forest model: ID=1
+    #random forest model: ID=1
     # p1=expand.grid(ID=1,num.trees=c(20,100,200),max.depth = c(5,20,50),
     #                mtry=c(10,30,60),min.nodes=c(1,5,10),splitrule=c("variance","extratrees"))
     # #neural network model: ID=2
-    # p2=expand.grid(ID=2,size=seq(2,12,1),decay=c(1e-4,1e-3,1e-2,1e-1))
+    # p2=expand.grid(ID=2,size=seq(2,11,1),decay=c(1e-4,1e-3,1e-2,1e-1))
     # #GAM : ID=3
     # p3=list()
     # for(i in 1:100){
-    #   p=cbind.data.frame(i,t(sample(c(1:7,9:85),20,replace = F)))
+    #   p=cbind.data.frame(i,t(sample(c(1:length(numeric_feature)),20,replace = F)))
     #   p3[[i]]=p
     # }
     # p3=bind_rows(p3)
@@ -81,7 +82,7 @@ for(r in c(3*rum, 3*rum+1, 3*rum+2)){
     # #Robust linear regression
     # p5=list()
     # for(i in 1:100){
-    #   p=cbind.data.frame(i,t(sample(c(1:7,9:85),30,replace = F)))
+    #   p=cbind.data.frame(i,t(sample(c(1:length(numeric_feature)),30,replace = F)))
     #   p5[[i]]=p
     # }
     # p5=bind_rows(p5)
@@ -100,9 +101,9 @@ for(r in c(3*rum, 3*rum+1, 3*rum+2)){
     # para_table=cbind.data.frame(id,in_id)
     # 
     # #a total of 845 parameter sets are tested
-    # save(file=here::here("Data","Medium Data","Regional_ParaList.RData"),para_list)
-    # save(file=here::here("Data","Medium Data","Regional_ParaTable.RData"),para_table)
-    
+    # save(file=here::here("Data","Medium Data","NE_MW_Regional_Model_Data,"Regional_ParaList.RData"),para_list)
+    # save(file=here::here("Data","Medium Data","NE_MW_Regional_Model_Data,"Regional_ParaTable.RData"),para_table)
+
     #Set the general control parameters-------------------------------------
     set.seed(4321)
     control=trainControl(method="repeatedcv", number=10,repeats = 1,
@@ -155,7 +156,7 @@ for(r in c(3*rum, 3*rum+1, 3*rum+2)){
       #GAM
       m=caret::train(
         y=training_data$Mean_Conc,
-        x=training_data[,features[as.numeric(para_list[[3]][in_id,2:21])]],
+        x=training_data[,numeric_feature[as.numeric(para_list[[3]][in_id,2:21])]],
         weights=training_data$N,
         replace=F,
         metric="RMSE",
@@ -190,7 +191,7 @@ for(r in c(3*rum, 3*rum+1, 3*rum+2)){
       #robust linear model
       m=caret::train(
         y=training_data$Mean_Conc,
-        x=training_data[,features[as.numeric(para_list[[5]][in_id,2:31])]],
+        x=training_data[,numeric_feature[as.numeric(para_list[[5]][in_id,2:31])]],
         weights=training_data$N,
         method="rlm",
         metric="RMSE",
