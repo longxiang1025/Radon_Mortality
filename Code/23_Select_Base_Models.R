@@ -41,10 +41,9 @@ library(mltools)
 # }
 # cv_pred_base_Fold=bind_rows(cv_pred_base_list)
 # base_pred_Fold=bind_rows(base_test_list)
-#
-#save(file = paste0("/n/holyscratch01/koutrakis_lab/Users/loli/Base_Fold_Sum/",Fold,".RData"),
+# 
+# save(file = paste0("/n/holyscratch01/koutrakis_lab/Users/loli/Base_Fold_Sum/",Fold,".RData"),
 #     cv_pred_base_Fold,base_pred_Fold)
-
 
 #------------------Check which base models can be run in all 30 Folds--------------
 # files=list.files("/n/holyscratch01/koutrakis_lab/Users/loli/Base_Fold_Sum/",full.names = T)
@@ -100,8 +99,7 @@ library(mltools)
 #                    common_paras[p,"ID"],"_",common_paras[p,"In_ID"],".RData"),
 #                    base_test,base_cv_pred)
 # }
-
-# 
+#  
 # #------------------Rank all base models based on their performance in cv---------
 # load(file="/n/holyscratch01/koutrakis_lab/Users/loli/Common_Bases.RData")
 # common_paras=cbind.data.frame(str_split(common_paras$para_string,"_",simplify = T)[,1],
@@ -149,7 +147,7 @@ l=1
 #The max number of base model selected
 max_count=30
 #The largest R2 the candidate model can have with selected base models
-cutoff_cor=0.75
+cutoff_cor=0.65
 
 for( i in 1:nrow(base_performance)){
   add=T
@@ -193,9 +191,59 @@ for( i in 1:nrow(base_performance)){
 model_list=bind_rows(model_list)
 names(select_preds)=paste0("Pred_",(1:ncol(select_preds)))
 names(select_preds_test)=paste0("Pred_",(1:ncol(select_preds_test)))
-
+t=apply(X=select_preds,MARGIN = 1,sd)
+# 
 select_preds$obs=base_cv_pred$obs
 select_preds$weights=base_cv_pred$weights
+select_preds$original_rowIndex=base_cv_pred$original_rowIndex
+
+select_preds$sd_base=t
+t=apply(X=select_preds[,1:max_count]-select_preds$obs,
+        MARGIN = 1,
+        mean)
+select_preds$mean_res=t
+
+t=apply(X=select_preds[,1:max_count]-select_preds$obs,
+        MARGIN = 1,
+        FUN= function(x) which.min(abs(x)))
+select_preds$best_model=t
+
+load(paste0("/n/koutrakis_lab/lab/Radon_Mortality/Data/Medium Data/NE_MW_Regional_Model_Data/Scratch_Copies/Regional_Training_",random_num=sample(1:10,1),".RData"))
+
+select_preds$X=training_data[select_preds$original_rowIndex,"X"]
+select_preds$Y=training_data[select_preds$original_rowIndex,"Y"]
+
+library(ggplot2)
+library(sf)
+library(scales)
+prjstring<-"+proj=aea +lat_1=20 +lat_2=60 +lat_0=23 +lon_0=-96 +x_0=0 +y_0=0 +ellps=GRS80 +datum=WGS84 +units=m +no_defs "
+
+load(here::here("Data","GeoData","Boundaries.RData"))
+bound_sf<-st_as_sf(bound)
+bound_sf=st_transform(bound_sf,crs=prjstring)
+
+for(m in 1:30){
+  g= ggplot(data=select_preds)+
+    geom_sf(data=bound_sf,fill="white")+
+    stat_summary_hex(aes(x=X,y=Y,z=best_model),
+                     color="gray",size=0.25,binwidth = 50000,
+                     fun = ~weighted.mean(.x==m,.w=.weights)*(ifelse(length(.x)>60,1,NA)))+
+    scale_fill_stepsn(expression('Radon Concentraion (Bq/m'^3*')'),
+                      breaks = seq(0,0.55,0.05),
+                      values = seq(0,0.55,0.05),
+                      limits=c(0,1),
+                      colors = rev(RColorBrewer::brewer.pal(11,"RdBu")),
+                      na.value = "red",
+                      guide = guide_colorsteps(direction = "horizontal",
+                                               title.position = "top",
+                                               label.position = "bottom",
+                                               barwidth = unit(4, "inch"),
+                                               barheight=unit(0.1, "inch")))+
+    theme_bw()+
+    theme(legend.position = "bottom",
+          axis.title = element_blank())
+  ggsave(filename = here::here("Figures","Medium",paste0(m,".jpeg")),g)
+}
 
 for(i in 1:max_count){
   temp_pair=cbind.data.frame(select_preds[,i],select_preds$obs,select_preds$weights)
@@ -203,4 +251,12 @@ for(i in 1:max_count){
   print(round(corr(temp_pair[,c("Pred","Obs")],temp_pair$Weight),3))
 }
 
-# m=lm(obs~Pred_1+Pred_10+Pred_20,w=select_preds$weights,data=select_preds)
+aggreg_select_pred=select_preds%>%group_by(original_rowIndex)%>%
+  summarise(Pred_1=mean(Pred_1),
+            Pred_2=mean(Pred_2),
+            Pred_21=mean(Pred_21),
+            Conc=mean(obs),
+            X=mean(X),
+            Y=mean(Y))
+
+m=lm(Conc~Pred_1+Pred_2+Pred_21,data=aggreg_select_pred)
