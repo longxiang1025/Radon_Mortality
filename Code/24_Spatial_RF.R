@@ -30,7 +30,7 @@ zipcode_list=unique(all_data[,c("ZIPCODE","X","Y")])
 
 control=trainControl(method="repeatedcv", number=10,repeats = 3,
                      savePredictions = T,returnResamp = "all",
-                     verboseIter = FALSE,
+                     verboseIter = TRUE,
                      summaryFunction = weight_summary)
 
 for( i in 1:nrow(zipcode_list)){
@@ -40,12 +40,13 @@ for( i in 1:nrow(zipcode_list)){
   
   ngbs=nabor::knn(query=pred[1,c("X","Y")],
                   data = candidate[,c("X","Y")],
-                  k=5000)
+                  k=10000)
   
   local_training=candidate[ngbs$nn.idx,]
-  b=50000
-  dist_w=as.vector(exp(-(ngbs$nn.dists)^2/(2*b^2))/(b*sqrt(2*pi)))
-  
+  b=max(t(ngbs$nn.dists))/2
+  dists=t(ngbs$nn.dists)
+  dist_w=exp(-(dists)^2/(2*b^2))/(b*sqrt(2*pi))
+  dist_w=dist_w*(1/max(dist_w))
   set.seed(500)
   m=caret::train(
     y=local_training$Mean_Conc,
