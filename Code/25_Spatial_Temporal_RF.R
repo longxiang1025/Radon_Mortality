@@ -37,7 +37,7 @@ control=trainControl(method="repeatedcv", number=10,repeats = 3,
 #The exchange between space and time, one month is equal to r/1000 km
 r=10000
 #the decay rate of Gaussian kernel
-d=2
+d=4
 #the number of nearest neighbors as training dataset
 k=5000
 
