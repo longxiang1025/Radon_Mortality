@@ -64,7 +64,7 @@ for( i in 1:nrow(zipcode_list)){
     tuneGrid=data.frame(.mtry=30,.splitrule="variance",.min.node.size=3)
   )
   local_pred=predict(m,pred)
-  test=cbind.data.frame(local_pred,pred[,c("ZIPCODE","Month","Year","N","Mean_Conc","SD_Conc")])
+  test=cbind.data.frame(local_pred,pred[,c("ZIPCODE","Month","Year","N","Mean_Conc","SD_Conc","Basement")])
   if(nrow(test)>2){
     r2=corr(test[,c("local_pred","Mean_Conc")],w=test$N)
     print(paste(zipcode_list[i,"ZIPCODE"],nrow(test),round(r2,3),sum(test$N),Sys.time()))
