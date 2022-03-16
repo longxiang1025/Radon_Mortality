@@ -10,4 +10,5 @@ for( f in files){
   l=l+1
 }
 test_result=bind_rows(test_result)
-corr(test_result[,c("local_pred","Mean_Conc")],test_result$N)
+corr(test_result[test_result$Basement==1,c("local_pred","Mean_Conc")],test_result[test_result$Basement==1,"N"])
+corr(test_result[test_result$Basement==0,c("local_pred","Mean_Conc")],test_result[test_result$Basement==0,"N"])
