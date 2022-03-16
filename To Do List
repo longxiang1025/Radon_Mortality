@@ -2,3 +2,5 @@ Regional Radon Model to-do list
 1. Develop a shortened parameter table and list, consisting of 2 random forest, 2 neural network, 2 deep learning, 1 gam, 1 robust linear regression (8 models)
 2. Develop a parameter table of bandwidth (25000 [25km], 100000 [100km], 200000[200km]) and number of neighbours selected [5000, 10000, 15000]
 3. Combine these two tables together and get a combined table of 72 rows.
+++ It seems that current solution: using all measurements from a zipcode as test and all other measurements as training, can lead to biased estimation in most cases. To address this, further division is unavoidable. That's a spatio-temporal ranfom forest.
+1. Develop a prototype of spatial-temporal random forest model.
