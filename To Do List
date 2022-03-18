@@ -13,3 +13,4 @@ Regional Radon Model to-do list
 ++ The overall R2 in the basement is 0.734^2, in aboveground floors is 0.687^2. Not significant improvement. The parameters of each random forest has been increased. So I don't think there's any need to tune the random forest models themselves. The next step is to lower the number of neightbours of each random forest model, and have look at the result.
 1. Restore the parameter back to 10000, and set the number of neighbours to 1500.
 ++ The overall R2 in the basement is 0.736^2, in aboveground floors is 0.677^2. No significant improvement. It seems that the model is very stable no matter how I change the parameters, suggesting that a global random forest is optimal. A last try is to have a close eye on my code and make a final decision.
+++ Fitting parameters, such as local R2 and top 10 important predictors should be saved.
