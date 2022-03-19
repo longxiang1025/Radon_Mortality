@@ -14,3 +14,10 @@ Regional Radon Model to-do list
 1. Restore the parameter back to 10000, and set the number of neighbours to 1500.
 ++ The overall R2 in the basement is 0.736^2, in aboveground floors is 0.677^2. No significant improvement. It seems that the model is very stable no matter how I change the parameters, suggesting that a global random forest is optimal. A last try is to have a close eye on my code and make a final decision.
 ++ Fitting parameters, such as local R2 and top 10 important predictors should be saved.
+++ After constraining the test dataset to be ZIP Codes with at least 10 measurements, the R2 is finally accepatable to be 0.83^2 (0.69). The next step is to think of visualization ideas and writing.
+1. Prediction. Develop a local random forest model for each ZIP Code & Month, and make the prediction. 
+2. Figure 1: Maps of raw data (hex map) in basement and upstairs.
+3. Figure 2: Flow chart of spatiotemporal random forest method.
+4. Figure 3: Fitting plot of test dataset with at least 10 measurements per ZIP Code and Month.
+5. Figure 4: Spatial distribution of MAE, MRE and the variable importance.
+6. Figure 5: Multi-panel maps of predictions.
