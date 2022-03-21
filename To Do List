@@ -17,6 +17,7 @@ Regional Radon Model to-do list
 ++ After constraining the test dataset to be ZIP Codes with at least 10 measurements, the R2 is finally accepatable to be 0.83^2 (0.69). The next step is to think of visualization ideas and writing.
 1. Prediction. Develop a local random forest model for each ZIP Code & Month, and make the prediction. 
 ++ Remove the two parameters related to gam model and redo the fitting and prediction.
+++ After removing the two GAM-related predictors, the R2 for all >10 ZIPCode & Month pairs is 0.829^2 (0.69). Looks acceptable.
 1. Figure 1: Maps of raw data (hex map) in basement and upstairs.
 2. Figure 2: Flow chart of spatiotemporal random forest method.
 3. Figure 3: Fitting plot of test dataset with at least 10 measurements per ZIP Code and Month.
