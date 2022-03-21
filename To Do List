@@ -16,8 +16,9 @@ Regional Radon Model to-do list
 ++ Fitting parameters, such as local R2 and top 10 important predictors should be saved.
 ++ After constraining the test dataset to be ZIP Codes with at least 10 measurements, the R2 is finally accepatable to be 0.83^2 (0.69). The next step is to think of visualization ideas and writing.
 1. Prediction. Develop a local random forest model for each ZIP Code & Month, and make the prediction. 
-2. Figure 1: Maps of raw data (hex map) in basement and upstairs.
-3. Figure 2: Flow chart of spatiotemporal random forest method.
-4. Figure 3: Fitting plot of test dataset with at least 10 measurements per ZIP Code and Month.
-5. Figure 4: Spatial distribution of MAE, MRE and the variable importance.
-6. Figure 5: Multi-panel maps of predictions.
+++ Remove the two parameters related to gam model and redo the fitting and prediction.
+1. Figure 1: Maps of raw data (hex map) in basement and upstairs.
+2. Figure 2: Flow chart of spatiotemporal random forest method.
+3. Figure 3: Fitting plot of test dataset with at least 10 measurements per ZIP Code and Month.
+4. Figure 4: Spatial distribution of MAE, MRE and the variable importance.
+5. Figure 5: Multi-panel maps of predictions.
