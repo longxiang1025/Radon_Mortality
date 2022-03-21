@@ -1,6 +1,7 @@
 rnum<-as.numeric(Sys.getenv("Sim"))
 
 library(sf)
+library(dplyr)
 library(caret)
 library(nabor)
 library(boot)
@@ -23,7 +24,7 @@ all_data=training_data
 all_data$geometry=NULL
 all_data$Basement=as.numeric(all_data$Basement)
 #Manually remove the collinear columns
-features=names(all_data)[c(5,9:11,14,16:20,22:78,81:93)]
+features=names(all_data)[c(3:5,9:14,16:20,22:93)]
 
 #zipcode_time_list=unique(all_data[,c("ZIPCODE","Month","Year","X","Y")])
 #for(i in 1:10){
@@ -35,9 +36,9 @@ control=trainControl(method="repeatedcv", number=10,repeats = 3,
                      verboseIter = FALSE,
                      summaryFunction = weight_summary)
 #The exchange between space and time, one month is equal to r/1000 km
-r=10000
+r=5000
 #the decay rate of Gaussian kernel
-d=4
+d=2
 #the number of nearest neighbors as training dataset
 k=5000
 
@@ -74,16 +75,25 @@ for(i in rnum+10000*(0:5)){
       importance="impurity",
       metric="RMSE",
       method="ranger",
-      num.trees=100,
+      num.trees=150,
       sample.fraction=0.55,
       replace=F,
-      max.depth=10,
+      max.depth=25,
       trControl=control,
-      #preProc = c("center", "scale"),
-      tuneGrid=data.frame(.mtry=30,.splitrule="variance",.min.node.size=3)
+      preProc = c("center", "scale"),
+      tuneGrid=data.frame(.mtry=45,.splitrule="extratrees",.min.node.size=10)
     )
     local_pred=predict(m,pred)
-    test=cbind.data.frame(local_pred,pred[,c("ZIPCODE","Month","Year","X","Y","N","Mean_Conc","SD_Conc","Basement")],k,r,d)
+    important_vars=varImp(m)[[1]]%>%dplyr::arrange(desc(Overall))
+    important_vars=t(row.names(important_vars)[1:10])
+    important_vars=as.data.frame(important_vars)
+    names(important_vars)=paste0("Pred_",seq(1,10))
+    important_vars=important_vars %>%
+      mutate(across(everything(), as.character))
+        
+    test=cbind.data.frame(local_pred,pred[,c("ZIPCODE","Month","Year","X","Y","N","Mean_Conc","SD_Conc","Basement")],k,r,d,
+                          R2=corr(m$pred[,c("obs","pred")],m$pred$weights)^2,
+                          important_vars)
     if(!dir.exists(paste0("/n/holyscratch01/koutrakis_lab/Users/loli/ST_RF/",
                           zipcode_time_list[i,"Year"],"/",zipcode_time_list[i,"Month"],"/"))){
       dir.create(paste0("/n/holyscratch01/koutrakis_lab/Users/loli/ST_RF/",
