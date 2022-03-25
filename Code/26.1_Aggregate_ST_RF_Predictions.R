@@ -19,9 +19,13 @@ files=list.files(fold_path,recursive = T)
 pred_list=list()
 l=1
 for( f in files){
-  load(paste0(fold_path,f))
-  pred_list[[l]]=pred
-  l=l+1
+  if(file.size(paste0(fold_path,f))>0){
+    load(paste0(fold_path,f))
+    pred_list[[l]]=pred
+    l=l+1 
+  }else{
+    print(f)
+  }
 }
 pred_list=bind_rows(pred_list)
 save(file = paste0("/n/koutrakis_lab/lab/Radon_Mortality/Data/State_Year/",

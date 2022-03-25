@@ -127,7 +127,7 @@ for(i in rnum+10000*(0:366)){
       local_training=candidate[ngbs$nn.idx,]
       local_training$geometry=NULL
       local_training$Basement=as.numeric(local_training$Basement)
-      features=names(local_training)[c(3:5,9:14,16:20,22:93)]
+      features=names(local_training)[c(3:5,9:14,16:20,22:78,81:93)]
       
       b=max(t(ngbs$nn.dists))/d
       dists=t(ngbs$nn.dists)

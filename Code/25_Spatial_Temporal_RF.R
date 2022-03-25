@@ -18,13 +18,12 @@ weight_summary<-function(data, lev = NULL, model = NULL){
   return(v)
 }
 
-load(paste0("/n/koutrakis_lab/lab/Radon_Mortality/Data/Medium Data/NE_MW_Regional_Model_Data/Scratch_Copies/Regional_Training_",random_num=sample(1:10,1),".RData"))
-load(paste0(paste0("/n/koutrakis_lab/lab/Radon_Mortality/Data/Medium Data/NE_MW_Regional_Model_Data/Scratch_Copies/ZIPCODE_Time_Unique_",random_num=sample(1:10,1),".RData")))
-all_data=training_data
+load(file=paste0("/n/holyscratch01/koutrakis_lab/Users/loli/Medium_Data/Regional_Training/Regional_Training_",sample(1:50,1),".RData"))
+load(file=paste0("/n/holyscratch01/koutrakis_lab/Users/loli/Medium_Data/ZIPCode_Time_List/ZIPCode_Time_List",sample(1:50,1),".RData"))
 all_data$geometry=NULL
 all_data$Basement=as.numeric(all_data$Basement)
 #Manually remove the collinear columns
-features=names(all_data)[c(3:5,9:14,16:20,22:93)]
+features=names(all_data)[c(3:5,9:14,16:20,22:78,81:93)]
 
 #zipcode_time_list=unique(all_data[,c("ZIPCODE","Month","Year","X","Y")])
 #for(i in 1:10){

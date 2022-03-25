@@ -8,17 +8,20 @@ test_result=list()
 l=1
 for( f in files){
   #load(paste0("/n/holyscratch01/koutrakis_lab/Users/loli/ST_RF_10000_2_5000/",f))
-  load(paste0("/n/holyscratch01/koutrakis_lab/Users/loli/ST_RF/",f))
-  test_result[[l]]=test
-  l=l+1
-  if(l%%1000==0){
-    print(l)
+  size=file.size(paste0("/n/holyscratch01/koutrakis_lab/Users/loli/ST_RF/",f))
+  if(size>0){
+    load(paste0("/n/holyscratch01/koutrakis_lab/Users/loli/ST_RF/",f))
+    test_result[[l]]=test
+    l=l+1
+    if(l%%1000==0){
+      print(l)
+    } 
   }
 }
 test_result=bind_rows(test_result)
 corr(test_result[test_result$Basement==1,c("local_pred","Mean_Conc")],test_result[test_result$Basement==1,"N"])
 corr(test_result[test_result$Basement==0,c("local_pred","Mean_Conc")],test_result[test_result$Basement==0,"N"])
-save(file = here::here("Data","Medium Data","NE_MW_Regional_Model_Data","ST_RF_Performance.RData"),test_result)
+save(file = here::here("Data","Medium Data","NE_MW_Regional_Model_Data","ST_RF_Performance_5000_2_5000.RData"),test_result)
 
 load(paste0("/n/koutrakis_lab/lab/Radon_Mortality/Data/Medium Data/NE_MW_Regional_Model_Data/Scratch_Copies/Regional_Training_",random_num=sample(1:10,1),".RData"))
 zipcode_state_table=unique(training_data[,c("ZIPCODE","State")])
