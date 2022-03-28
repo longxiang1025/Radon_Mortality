@@ -1,3 +1,7 @@
+######################################################################3
+#The objective of this script is to generate the training dataset for the random forest model
+#Meanwhile, two figures (Fig 1 and 2) are made here to summarize the data.
+#######################################################################
 library(dplyr)
 library(lubridate)
 library(EnvStats)
@@ -15,6 +19,7 @@ Neighbour_States=c("WV","KY","VA","CO","WV","MT","OK","AR","TN","NC")
 load(file="Merged_Measurements_201031.RData")
 
 load(here::here("Data","GeoData","2015_Shapes.RData"))
+sf::sf_use_s2(FALSE)
 zips_sf=st_as_sf(zips)
 zip_centroid_longlat=st_centroid(zips_sf)
 zips_sf=st_transform(zips_sf,crs="+proj=lcc +lon_0=-100 +lat_1=33 +lat_2=45")
@@ -42,7 +47,7 @@ common_theme=theme(panel.background = element_rect(fill = "aliceblue",color="ali
                    legend.text = element_text(size=12),
                    legend.margin = margin(0.06,0.1,0.06,0.1,"in"))
 
-#Load pre-load functions--------------------------------------------
+#Load defined functions--------------------------------------------
 pattern <- function(x, size, pattern) {
   ex = list(
     horizontal = c(1, 2),
@@ -120,7 +125,8 @@ coloc_data=coloc_data%>%filter(Conc<100)
 coloc_data[coloc_data$Conc==0,"Conc"]=0.15
 save(coloc_data,file="Cleaned_Raw_Data_0220.RData")
 
-##Create a plot for the point-base data-------------
+## [Figure 1]Create a plot for the point-base data-------------
+load(file="Cleaned_Raw_Data_0220.RData")
 coloc_data_vis=coloc_data%>%left_join(zip_centroid,by=c("TestPostalCode"="ZIPCODE"))
 coloc_data_vis=coloc_data_vis%>%filter(!is.na(x))
 exclude_pattern = 
@@ -138,12 +144,12 @@ creat_fig1=function(data=coloc_data_vis%>%filter(Floor=="Basement")){
     geom_sf(data=exclude_region,size=0.65,fill="white",alpha=0.75)+
     geom_sf(data=extent_bound,fill=NA,color="Black",size=0.65)+
     scale_fill_stepsn(expression('Radon Concentraion (Bq/m'^3*')'),
-                      breaks = c(0.5,1,2,3,4,5,6,7),
-                      values = c(0,0.1,0.2,0.3,0.5,0.6,0.7,0.8,1),
-                      labels=37*c(0.5,1,2,3,4,5,6,7),
-                      limits=c(0,8),
+                      breaks = seq(0,10,1),
+                      values = seq(0,1,0.1),
+                      limits=c(0,10),
+                      labels=37*seq(0,10,1),
                       oob = scales::squish,
-                      colors = rev(RColorBrewer::brewer.pal(11,"RdBu")),
+                      colors = (RColorBrewer::brewer.pal(11,"YlOrRd")),
                       guide = guide_colorsteps(direction = "vertical",
                                                title.position = "right",
                                                label.position = "right",
@@ -178,7 +184,7 @@ panel_b=panel_b+
                  location="bottomright")
 fig1=cowplot::plot_grid(panel_a,panel_b,nrow = 2,labels = c("A","B"))
 cowplot::save_plot("Fig1.pdf",base_height = 9,base_width = 9,plot=fig1)
-##Plot the seasonal trend in radon concentrations----------------
+## [Figure 2]Plot the seasonal trend in radon concentrations----------------
 load(file="Cleaned_Raw_Data_0220.RData")
 monthly_mean=coloc_data%>%group_by(Floor=="Basement",month(StartDate),year(StartDate))%>%
   summarise(m=geoMean(Conc),lb=quantile(Conc,0.25),ub=quantile(Conc,0.75))
@@ -213,7 +219,7 @@ fig2=ggplot(data=monthly_mean)+
         scale_color_manual("Building Floor",
                            breaks = c(TRUE,FALSE),
                            values = c("#BF0A30","#002868"),
-                           labels=c("Basement","Upper Floors"))+
+                           labels=c("Basement","Aboveground"))+
         scale_fill_manual("Season",
                           breaks = c("Spring","Summer","Autumn","Winter"),
                           values = c("#FEF8FA","#D6F1C6","#F9CC87","#C9F1FD"))+
