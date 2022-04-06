@@ -162,7 +162,7 @@ result_data$log_Init=log(37*result_data$Init_Measurement)
 result_data$log_Follow=log(37*result_data$Follow_Measurement)
 result_data=result_data%>%filter(Init_Count<3)
 # restrict analysis to measurements by Liquid Scintilation
-result_data=result_data%>%filter(Init_Method=="LS")
+#result_data=result_data%>%filter(Init_Method=="LS")
 ##Attach other secondary information to the data----------------------
 # The aim of this section is to add radon potential, humidity, temperature information to data
 ###Add spatial dimensions to the data---------------------------------
