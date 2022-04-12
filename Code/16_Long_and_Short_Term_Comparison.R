@@ -31,6 +31,21 @@ lm_eqn <- function(df){
                    list(r2 = format((summary(m))$r.squared, digits = 2)))
   as.character(as.expression(eq));
 }
+r2_est<-function(df,n){
+  result=list()
+  for(i in 1:n){
+    set.seed(i+1230)
+    r_data=sample(1:nrow(df),nrow(df),replace = T)
+    r_data=df[r_data,]
+    m<-lm(Follow_Measurement~Init_Measurement+I(Init_Method=="LS")+I(Floor=="Basement")+duration_centered+I(Winter>=0.25)+I(Spring>=0.25)+I(Summer>=0.25)+I(Autumn>=0.25),
+          data=r_data)
+    r=(summary(m))$r.square
+    result[[i]]=r
+  }
+  result=unlist(result)
+  return(result)
+
+}
 #Main Analysis-------------------
 load("Long_and_Short.RData")
 result_data=result_data%>%filter(Init_Measurement<30)
@@ -53,35 +68,58 @@ m0=lm(Follow_Measurement~Init_Measurement+I(Init_Method=="LS")+I(Floor=="Basemen
       data=result_data%>%filter(Diff_Days<=180,Diff_Days>=0))
 summary(m0)
 
+m0_re=r2_est(df=result_data%>%filter(Diff_Days<=180,Diff_Days>=0),
+             n=1000)
+quantile(m0_re,c(0.025,0.975))
+
 #690 pairs of measurements
 m1=lm(Follow_Measurement~Init_Measurement+I(Init_Method=="LS")+I(Floor=="Basement")+duration_centered+I(Winter>=0.25)+I(Spring>=0.25)+I(Summer>=0.25)+I(Autumn>=0.25),
      data=result_data%>%filter(Diff_Days<=7,Diff_Days>=0))
 summary(m1)
 
+m1_re=r2_est(df=result_data%>%filter(Diff_Days<=7,Diff_Days>=0),
+          n=1000)
+quantile(m1_re,c(0.025,0.975))
+
 #241 pairs of measurements
 m2=lm(Follow_Measurement~Init_Measurement+I(Init_Method=="LS")+I(Floor=="Basement")+duration_centered+I(Winter>=0.25)+I(Spring>=0.25)+I(Summer>=0.25)+I(Autumn>=0.25),
       data=result_data%>%filter(Diff_Days<=14,Diff_Days>=7))
 summary(m2)
+m2_re=r2_est(df=result_data%>%filter(Diff_Days<=14,Diff_Days>=7),
+             n=1000)
+quantile(m2_re,c(0.025,0.975))
 
 #387 pairs of measurements
 m3=lm(Follow_Measurement~Init_Measurement+I(Init_Method=="LS")+I(Floor=="Basement")+duration_centered+I(Winter>=0.25)+I(Spring>=0.25)+I(Summer>=0.25)+I(Autumn>=0.25),
       data=result_data%>%filter(Diff_Days<=28,Diff_Days>=14))
 summary(m3)
+m3_re=r2_est(df=result_data%>%filter(Diff_Days<=28,Diff_Days>=14),
+             n=1000)
+quantile(m3_re,c(0.025,0.975))
 
 #420 pairs of measurements
 m4=lm(Follow_Measurement~Init_Measurement+I(Init_Method=="LS")+I(Floor=="Basement")+duration_centered+I(Winter>=0.25)+I(Spring>=0.25)+I(Summer>=0.25)+I(Autumn>=0.25),
       data=result_data%>%filter(Diff_Days<=60,Diff_Days>=28))
 summary(m4)
+m4_re=r2_est(df=result_data%>%filter(Diff_Days<=60,Diff_Days>=28),
+             n=1000)
+quantile(m4_re,c(0.025,0.975))
 
 #455 pairs of measurements
 m5=lm(Follow_Measurement~Init_Measurement+I(Init_Method=="LS")+I(Floor=="Basement")+duration_centered+I(Winter>=0.25)+I(Spring>=0.25)+I(Summer>=0.25)+I(Autumn>=0.25),
       data=result_data%>%filter(Diff_Days<=120,Diff_Days>=60))
 summary(m5)
+m5_re=r2_est(df=result_data%>%filter(Diff_Days<=120,Diff_Days>=60),
+             n=1000)
+quantile(m5_re,c(0.025,0.975))
 
 #267 pairs of measurements
 m6=lm(Follow_Measurement~Init_Measurement+I(Init_Method=="LS")+I(Floor=="Basement")+duration_centered+I(Winter>=0.25)+I(Spring>=0.25)+I(Summer>=0.25)+I(Autumn>=0.25),
       data=result_data%>%filter(Diff_Days<=180,Diff_Days>=120))
 summary(m6)
+m6_re=r2_est(df=result_data%>%filter(Diff_Days<=180,Diff_Days>=120),
+             n=1000)
+quantile(m6_re,c(0.025,0.975))
 
 #Supplementary Analysis (Restrict to one-year measurement)----------
 short_season=mapply(FUN = season_prop,
@@ -137,11 +175,6 @@ pred$p=pnorm(q=log(4),mean=pred$fit,sd=pred$pred_sd,lower.tail = F)
 ggplot()+
   geom_point(data=pred%>%filter(duration%in%c(90,300)),
              aes(x=exp(log_Init),y=p,color=duration))
-
-load(file="Merged_Measurements_201031.RData")
-percent_grid=seq(0.4,10,0.1)
-short_term_measurements=lab_data%>%filter(Method!="AT")
-long_term_measurements=lab_data%>%filter(Method=="AT")
 
 radon_count=list()
 for(i in 2:length(percent_grid)){
@@ -243,6 +276,9 @@ ggsave("Fig1.pdf",width = 9,height = 8,plot=fig1)
 
 
 #Figure 2. the histogram and density curve of short- and long-term measurements----------
+load(file="Merged_Measurements_201031.RData")
+short_term_measurements=lab_data%>%filter(Method!="AT")
+long_term_measurements=lab_data%>%filter(Method=="AT")
 s_histogram=ggplot()+
   geom_histogram(data=short_term_measurements%>%filter(PCI.L<35,PCI.L>0),aes(x=37*PCI.L,y=..density..,fill="All"),
                  binwidth = 10,color="gray",alpha=0.33,size=0.15)+
