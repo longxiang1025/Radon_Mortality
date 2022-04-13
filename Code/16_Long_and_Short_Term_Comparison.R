@@ -129,21 +129,41 @@ summary(m2.1)
 m2.1_re=r2_est(df=result_data%>%filter(Diff_Days<=14,Diff_Days>=0,duration<=100),
              n=1000)
 quantile(m2.1_re,c(0.025,0.975))
+nrow(m2.1$ model)
 
 m2.2=lm(Follow_Measurement~Init_Measurement+I(Init_Method=="LS")+I(Floor=="Basement")+duration_centered+I(Winter>=0.25)+I(Spring>=0.25)+I(Summer>=0.25)+I(Autumn>=0.25),
-       data=result_data%>%filter(Diff_Days<=14,Diff_Days>=0,duration<=300,duration>=100))
+       data=result_data%>%filter(Diff_Days<=14,Diff_Days>=0,duration<=200,duration>=100))
 summary(m2.2)
 
-m2.2_re=r2_est(df=result_data%>%filter(Diff_Days<=14,Diff_Days>=0,duration>=100,duration<=300),
+m2.2_re=r2_est(df=result_data%>%filter(Diff_Days<=14,Diff_Days>=0,duration>=100,duration<=200),
                n=1000)
 quantile(m2.2_re,c(0.025,0.975))
+nrow(m2.2$ model)
 
 m2.3=lm(Follow_Measurement~Init_Measurement+I(Init_Method=="LS")+I(Floor=="Basement")+duration_centered+I(Winter>=0.25)+I(Spring>=0.25)+I(Summer>=0.25)+I(Autumn>=0.25),
-      data=result_data%>%filter(Diff_Days<=14,Diff_Days>=0,duration>=300))
+        data=result_data%>%filter(Diff_Days<=14,Diff_Days>=0,duration>=200,duration<=300))
 summary(m2.3)
-m2.3_re=r2_est(df=result_data%>%filter(Diff_Days<=14,Diff_Days>=0,duration>=300,duration<=365),
+m2.3_re=r2_est(df=result_data%>%filter(Diff_Days<=14,Diff_Days>=0,duration>=200,duration<=300),
                n=1000)
 quantile(m2.3_re,c(0.025,0.975))
+nrow(m2.3$ model)
+
+m2.4=lm(Follow_Measurement~Init_Measurement+I(Init_Method=="LS")+I(Floor=="Basement")+duration_centered+I(Winter>=0.25)+I(Spring>=0.25)+I(Summer>=0.25)+I(Autumn>=0.25),
+      data=result_data%>%filter(Diff_Days<=14,Diff_Days>=0,duration>=300))
+summary(m2.4)
+m2.4_re=r2_est(df=result_data%>%filter(Diff_Days<=14,Diff_Days>=0,duration>=300,duration<=365),
+               n=1000)
+quantile(m2.4_re,c(0.025,0.975))
+nrow(m2.4$model)
+
+m2.0=lm(Follow_Measurement~Init_Measurement+I(Init_Method=="LS")+I(Floor=="Basement")+duration_centered+I(Winter>=0.25)+I(Spring>=0.25)+I(Summer>=0.25)+I(Autumn>=0.25),
+        data=result_data%>%filter(Diff_Days<=14,Diff_Days>=0,duration>=90,duration<=365))
+summary(m2.0)
+
+m2.0_re=r2_est(df=result_data%>%filter(Diff_Days<=14,Diff_Days>=0,duration>=90,duration<=365),
+               n=1000)
+quantile(m2.0_re,c(0.025,0.975))
+nrow(m2.0$model)
 
 #Supplementary Analysis (Restrict to one-year measurement)----------
 short_season=mapply(FUN = season_prop,
