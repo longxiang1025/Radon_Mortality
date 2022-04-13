@@ -28,7 +28,7 @@ season_prop=function(start_date,end_date){
 lm_eqn <- function(df){
   m <- lm(Init_Measurement~Follow_Measurement,df);
   eq <- substitute(~~italic(r)^2~"="~r2, 
-                   list(r2 = format((summary(m))$r.squared, digits = 2)))
+                   list(r2 = formatC((summary(m))$r.squared, digits = 2,format = "f")))
   as.character(as.expression(eq));
 }
 r2_est<-function(df,n){
@@ -120,6 +120,30 @@ summary(m6)
 m6_re=r2_est(df=result_data%>%filter(Diff_Days<=180,Diff_Days>=120),
              n=1000)
 quantile(m6_re,c(0.025,0.975))
+
+#Supplementary Analysis (100, 300, 12 months of long-term)----------
+m2.1=lm(Follow_Measurement~Init_Measurement+I(Init_Method=="LS")+I(Floor=="Basement")+duration_centered+I(Winter>=0.25)+I(Spring>=0.25)+I(Summer>=0.25)+I(Autumn>=0.25),
+      data=result_data%>%filter(Diff_Days<=14,Diff_Days>=0,duration<=100))
+summary(m2.1)
+
+m2.1_re=r2_est(df=result_data%>%filter(Diff_Days<=14,Diff_Days>=0,duration<=100),
+             n=1000)
+quantile(m2.1_re,c(0.025,0.975))
+
+m2.2=lm(Follow_Measurement~Init_Measurement+I(Init_Method=="LS")+I(Floor=="Basement")+duration_centered+I(Winter>=0.25)+I(Spring>=0.25)+I(Summer>=0.25)+I(Autumn>=0.25),
+       data=result_data%>%filter(Diff_Days<=14,Diff_Days>=0,duration<=300,duration>=100))
+summary(m2.2)
+
+m2.2_re=r2_est(df=result_data%>%filter(Diff_Days<=14,Diff_Days>=0,duration>=100,duration<=300),
+               n=1000)
+quantile(m2.2_re,c(0.025,0.975))
+
+m2.3=lm(Follow_Measurement~Init_Measurement+I(Init_Method=="LS")+I(Floor=="Basement")+duration_centered+I(Winter>=0.25)+I(Spring>=0.25)+I(Summer>=0.25)+I(Autumn>=0.25),
+      data=result_data%>%filter(Diff_Days<=14,Diff_Days>=0,duration>=300))
+summary(m2.3)
+m2.3_re=r2_est(df=result_data%>%filter(Diff_Days<=14,Diff_Days>=0,duration>=300,duration<=365),
+               n=1000)
+quantile(m2.3_re,c(0.025,0.975))
 
 #Supplementary Analysis (Restrict to one-year measurement)----------
 short_season=mapply(FUN = season_prop,
@@ -275,7 +299,7 @@ fig1=cowplot::plot_grid(us_map,h_duration,nrow=2,rel_heights = c(2,1))
 ggsave("Fig1.pdf",width = 9,height = 8,plot=fig1)
 
 
-#Figure 2. the histogram and density curve of short- and long-term measurements----------
+#Figure 3. the histogram and density curve of short- and long-term measurements----------
 load(file="Merged_Measurements_201031.RData")
 short_term_measurements=lab_data%>%filter(Method!="AT")
 long_term_measurements=lab_data%>%filter(Method=="AT")
@@ -369,7 +393,7 @@ l_histogram
 
 fig2=cowplot::plot_grid(s_histogram,l_histogram,nrow = 1,labels = c("A","B"),label_x = 0.85,label_y = 0.95)
 ggsave("Figure2.pdf",plot=fig2,width=9,height = 6)
-#Figure3. The scatter plot as facet of difference days-----------
+#Figure 2. The scatter plot as facet of difference days-----------
 load("Long_and_Short.RData")
 result_data=result_data%>%filter(Init_Measurement<30)
 result_data$duration=as.numeric(result_data$Follow_End_Date-result_data$Follow_Start_Date)
@@ -381,12 +405,12 @@ result_data$log_Follow=log(result_data$Follow_Measurement)
 result_data$Short_Month=lubridate::month(result_data$Init_End_Date)
 result_data$duration_centered=result_data$duration-200
 
-make_fig3_panels=function(low_m,up_m,add_axis_title=T){
+make_fig3_panels=function(low_m,up_m,add_x_axis_title=F,add_y_axis_title=F){
   #low_m=120
   #up_m=180
   title=paste0("Difference from ",low_m," to ",up_m," days")
   p=ggplot(data=result_data%>%filter(Diff_Days>=low_m,Diff_Days<=up_m))+
-    geom_point(aes(x=37*Init_Measurement,y=37*Follow_Measurement))+
+    geom_point(aes(x=37*Init_Measurement,y=37*Follow_Measurement),size=1,alpha=0.33)+
     geom_abline(aes(slope=1,intercept=0))+
     ggtitle(title)+
     geom_text(x = 100, y = 750,
@@ -397,21 +421,25 @@ make_fig3_panels=function(low_m,up_m,add_axis_title=T){
           axis.text = element_text(size=10),
           plot.title=element_text(size=11,hjust=0.5, vjust=0.5,margin=margin(t=40,b=10)),
           plot.margin = unit(c(0, 0, 0, 0), "cm"))
-  if(add_axis_title==F){
-    p=p+xlab(" ")+ylab(" ")
+  if(add_x_axis_title==F){
+    p=p+xlab(" ")
   }else{
-    p=p+xlab(expression('Short-term Radon (Bq/m'^3*')'))+
-      ylab(expression('Long-term Radon (Bq/m'^3*')'))
+    p=p+xlab(expression('Short-term Radon (Bq/m'^3*')'))
+  }
+  if(add_y_axis_title==F){
+    p=p+ylab(" ")
+  }else{
+    p=p+ylab(expression('Long-term Radon (Bq/m'^3*')'))
   }
   return(p)
   
 }
-f3pa=make_fig3_panels(low_m = 0,up_m=7,add_axis_title = T)
-f3pb=make_fig3_panels(low_m = 7,up_m=14,add_axis_title = T)
-f3pc=make_fig3_panels(low_m = 14,up_m=28,add_axis_title = T)
-f3pd=make_fig3_panels(low_m = 28,up_m=60,add_axis_title = T)
-f3pe=make_fig3_panels(low_m = 60,up_m=120,add_axis_title = T)
-f3pf=make_fig3_panels(low_m = 120,up_m=180,add_axis_title = T)
+f3pa=make_fig3_panels(low_m = 0,up_m=7,add_x_axis_title = T,add_y_axis_title = T)
+f3pb=make_fig3_panels(low_m = 7,up_m=14,add_x_axis_title = T,add_y_axis_title = T)
+f3pc=make_fig3_panels(low_m = 14,up_m=28,add_x_axis_title = T,add_y_axis_title = T)
+f3pd=make_fig3_panels(low_m = 28,up_m=60,add_x_axis_title = T,add_y_axis_title = T)
+f3pe=make_fig3_panels(low_m = 60,up_m=120,add_x_axis_title = T,add_y_axis_title = T)
+f3pf=make_fig3_panels(low_m = 120,up_m=180,add_x_axis_title = T,add_y_axis_title = T)
 fig3=cowplot::plot_grid(f3pa,f3pb,f3pc,
                    f3pd,f3pe,f3pf,nrow=2,labels = c("A","B","C","D","E","F"))
 cowplot::ggsave2("Figure3.pdf",plot=fig3,width = 9,height = 8)
