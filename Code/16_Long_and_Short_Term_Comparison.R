@@ -82,7 +82,7 @@ strat_model<-function(d_lb=0,d_ub=7,l_lb=90,l_ub=365,s_lb=2,s_ub=4,n=1000,n_digi
   return(output)
 }
 
-set_breakpoints=function(n_bpoints=50,width=5,df){
+set_dif_breakpoints=function(n_bpoints=50,width=5,df){
   min_c=min(df$Diff_Days)
   max_c=max(df$Diff_Days)
   df_middle=df%>%filter(Diff_Days>min_c,Diff_Days<max_c)
@@ -93,6 +93,19 @@ set_breakpoints=function(n_bpoints=50,width=5,df){
              b_points[(width+1):length(b_points)])
   return(b_points)
 }
+
+set_length_breakpoints=function(n_bpoints=50,width=5,df){
+  min_c=min(df$long_duration)
+  max_c=max(df$long_duration)
+  df_middle=df%>%filter(long_duration>min_c,long_duration<max_c)
+  b_points=quantile(df_middle$long_duration,seq(0,1,1/n_bpoints))
+  b_points=as.integer(b_points)
+  b_points=c(min_c,b_points,max_c)
+  b_points=cbind(b_points[1:(length(b_points)-width)],
+                 b_points[(width+1):length(b_points)])
+  return(b_points)
+}
+
 
 write_cell=function(df,col_name="Follow_Measurement",conversion=1){
   return(paste0(formatC(median(conversion*df[,col_name]),digits = 1,format = "f"),"/r/n(",
@@ -106,8 +119,8 @@ write_summary=function(d_lb=0,d_ub=7,l_lb=90,l_ub=365){
   diff_range=paste0("[",d_lb,", ",d_ub,")")
   length_range=paste0("[",l_lb,", ",l_ub,")")
   n=nrow(df)
-  long=write_cell(df,col_name = "Follow_Measurement",conversion=37)
-  short=write_cell(df,col_name = "Init_Measurement",conversion = 37)
+  long=write_cell(df,col_name = "Follow_Measurement")
+  short=write_cell(df,col_name = "Init_Measurement")
   
   ls=paste0(formatC(100*mean(df$Init_Method=="LS"),digits = 1,format = "f"),"%")
   basement=paste0(formatC(100*mean(df$Floor=="Basement"),digits = 1,format = "f"),"%")
@@ -143,6 +156,8 @@ result_season=mapply(FUN = season_prop,
                       end_date=result_data$Follow_End_Date)
 result_season=as.data.frame(t(result_season))
 result_data=bind_cols(result_data,result_season)
+result_data$Init_Measurement=37*result_data$Init_Measurement
+result_data$Follow_Measurement=37*result_data$Follow_Measurement
 
 r0=write_summary(d_lb = 0,d_ub = 180,l_lb = 90,l_ub = 360)
 
@@ -171,7 +186,7 @@ table1=rbind.data.frame(r0,
                         r2.1,r2.2,r2.3,
                         r3.1,r3.2,r3.3,
                         r4.1,r4.2,r4.3)
-write_excel_csv(table1,"Table1.csv")
+#write_excel_csv(table1,"Table1.csv")
 
 
 #Analysis Set 1--------------------
@@ -183,39 +198,40 @@ s1=strat_model(d_lb = 0,d_ub = 7,l_lb = 90,l_ub = 366,n_digits = 2)
 s2=strat_model(d_lb = 7,d_ub = 30,l_lb = 90,l_ub = 366,n_digits = 2)
 s3=strat_model(d_lb = 30,d_ub = 90,l_lb = 90,l_ub = 366,n_digits = 2)
 s4=strat_model(d_lb = 90,d_ub = 180,l_lb = 90,l_ub = 366,n_digits = 2)
+
+s5=strat_model(d_lb = 0,d_ub = 180,l_lb = 90,l_ub = 120,n_digits = 2)
+s6=strat_model(d_lb = 0,d_ub = 180,l_lb = 120,l_ub = 270,n_digits = 2)
+s7=strat_model(d_lb = 0,d_ub = 180,l_lb = 270,l_ub = 366,n_digits = 2)
+
 ##Make Table 2 with the results-------------------------------------
-table2=rbind.data.frame(s1,s2,s3,s4,s0)
+table2=rbind.data.frame(s1,s2,s3,s4,s5,s6,s7,s0)
 write_excel_csv(table2,"Table2.csv")
-##Stratify the data into ~50 stratification defined by percentiles, and run models-----------
+##Stratify the data into ~50 stratification defined by the percentiles of temporal distance, and run models-----------
 #Determine the breakpoints of each overlaping stratifications
-d_breaks=set_breakpoints(n_bpoints = 50,width = 10,df=result_data)
+d_breaks=set_dif_breakpoints(n_bpoints = 50,width = 10,df=result_data)
 #Use all the data
 l_breaks=c(90,366)
-a1_table=expand.grid(d=1:(nrow(d_breaks)),
+a1.1_table=expand.grid(d=1:(nrow(d_breaks)),
                      l=1:(length(l_breaks)-1))
-a1_results=list()
-for(i in 1:nrow(a1_table)){
-  d=a1_table[i,"d"]
-  l=a1_table[i,"l"]
+a1.1_results=list()
+for(i in 1:nrow(a1.1_table)){
+  d=a1.1_table[i,"d"]
+  l=a1.1_table[i,"l"]
   d_lb=d_breaks[d,1]
   d_ub=d_breaks[d,2]
   l_lb=l_breaks[l]
   l_ub=l_breaks[l+1]
   #We didn't run the bootstrap for thousands of times until it comes to publication.
   s=strat_model(d_lb = d_lb,d_ub = d_ub,l_lb = l_lb,l_ub = l_ub,n=100,n_digits = 3)
-  a1_results[[i]]=s
+  a1.1_results[[i]]=s
 }
-a1_results=bind_rows(a1_results)
-a1_vis_data=a1_results[,1:4]
-#a1_vis_data[,c("xl","xu")]=str_split(str_sub(a1_results$d_range,start=2,end=-2),pattern = ",",simplify = T)
-#a1_vis_data$xl=as.numeric(a1_vis_data$xl)
-#a1_vis_data$xu=as.numeric(a1_vis_data$xu)
-#a1_vis_data$x=(a1_vis_data$xl+a1_vis_data$xu)/2
-a1_vis_data$est=as.numeric(substr(a1_results$r2_ci,1,5))
-a1_vis_data$lci=as.numeric(substr(a1_results$r2_ci,8,12))
-a1_vis_data$uci=as.numeric(substr(a1_results$r2_ci,15,19))
+a1.1_results=bind_rows(a1.1_results)
+a1.1_vis_data=a1.1_results[,1:4]
+a1.1_vis_data$est=as.numeric(substr(a1.1_results$r2_ci,1,5))
+a1.1_vis_data$lci=as.numeric(substr(a1.1_results$r2_ci,9,13))
+a1.1_vis_data$uci=as.numeric(substr(a1.1_results$r2_ci,16,20))
 
-fig4=ggplot(data=a1_vis_data)+
+f4pa=ggplot(data=a1.1_vis_data)+
   geom_crossbar(aes(x=d_range,y=est,ymin=lci,ymax=uci),size=0.25,fatten = 5,width=0.85,fill="gray85")+
   labs(x="Temporal Difference between Short- and Long-term Measurement (Days)",
        y=expression('R'^2~'of the Model'))+
@@ -226,9 +242,45 @@ fig4=ggplot(data=a1_vis_data)+
         axis.text.y = element_text(size=8),
         axis.title = element_text(size=9),
         panel.grid.minor = element_blank())
+fig4=cowplot::plot_grid(f4pa,f4pb,nrow = 2,labels = c("A","B"))
+cowplot::save_plot(file="Figure4.pdf",plot = fig4,base_width = 6,base_height = 8,device = cairo_pdf)
 
-ggsave(file="Figure4.pdf",plot = fig4,width = 6,height = 4,device = cairo_pdf)
+##Stratify the data into ~50 stratification defined by the percentiles of length, and run models---------------
+#Determine the breakpoints of each overlaping stratifications
+l_breaks=set_length_breakpoints(n_bpoints = 50,width = 10,df=result_data)
+#Use all the data
+d_breaks=c(0,180)
+a1.2_table=expand.grid(l=1:(nrow(l_breaks)),
+                       d=1:(length(d_breaks)-1))
+a1.2_results=list()
+for(i in 1:nrow(a1.2_table)){
+  d=a1.2_table[i,"d"]
+  l=a1.2_table[i,"l"]
+  d_lb=d_breaks[d]
+  d_ub=d_breaks[d+1]
+  l_lb=l_breaks[l,1]
+  l_ub=l_breaks[l,2]
+  #We didn't run the bootstrap for thousands of times until it comes to publication.
+  s=strat_model(d_lb = d_lb,d_ub = d_ub,l_lb = l_lb,l_ub = l_ub,n=100,n_digits = 3)
+  a1.2_results[[i]]=s
+}
+a1.2_results=bind_rows(a1.2_results)
+a1.2_vis_data=a1.2_results[,1:4]
+a1.2_vis_data$est=as.numeric(substr(a1.2_results$r2_ci,1,5))
+a1.2_vis_data$lci=as.numeric(substr(a1.2_results$r2_ci,9,13))
+a1.2_vis_data$uci=as.numeric(substr(a1.2_results$r2_ci,16,20))
 
+f4pb=ggplot(data=a1.2_vis_data)+
+  geom_crossbar(aes(x=l_range,y=est,ymin=lci,ymax=uci),size=0.25,fatten = 5,width=0.85,fill="gray85")+
+  labs(x="Length of Long-term Measurement (Days)",
+       y=expression('R'^2~'of the Model'))+
+  scale_y_continuous(breaks = c(0.0,0.25,0.50,0.75,1.0))+
+  coord_cartesian(ylim = c(0,1),clip="off",expand = T)+
+  theme_bw()+
+  theme(axis.text.x = element_text(size=8,angle = -90,vjust=0.5, hjust=0),
+        axis.text.y = element_text(size=8),
+        axis.title = element_text(size=9),
+        panel.grid.minor = element_blank())
 #Analysis Set 2------------------------------------
 #Further divide each of the four stratifications into three sub-groups based on length of the
 #long-term measurements, then refit the model with the same formula to see whether R2 varies 
@@ -282,7 +334,7 @@ a2_vis_data$uci=as.numeric(substr(a2_results$r2_ci,13,16))
 ggplot(data=a2_vis_data)+
   geom_crossbar(aes(x=l_range,y=est,ymin=lci,ymax=uci,fill=d_range),position = "dodge",fatten = 1)
 
-d_breaks=set_breakpoints(n_bpoints = 50,width = 10,df=result_data)
+d_breaks=set_dif_breakpoints(n_bpoints = 50,width = 10,df=result_data)
 l_breaks=c(90,120,270,366)
 a3_table=expand.grid(d=1:(nrow(d_breaks)-1),
                      l=1:(length(l_breaks)-1))
@@ -310,7 +362,7 @@ a3_vis_data$uci=as.numeric(substr(a3_results$r2_ci,15,20))
 f5=ggplot(data=a3_vis_data)+
   geom_crossbar(aes(x=d_range,y=est,ymin=lci,ymax=uci),size=0.25,fatten = 5,width=0.85,fill="gray85")+
   labs(x="Temporal Difference between Short- and Long-term Measurement (Days)",
-       y="Correlation between the Observed and Predicted Long-term Measurements")+
+       y=expression('R'^2~'of the Model'))+
   scale_y_continuous(breaks = c(0.25,0.50,0.75,1.0))+
   coord_cartesian(ylim = c(0,1),clip="on",expand = F)+
   theme_bw()+
@@ -437,14 +489,14 @@ make_fig3_panels=function(d_lb,d_ub,l_lb,l_ub,title=NULL,add_x_axis_title=F,add_
     title=paste0("Difference from ",low_m," to ",up_m," days")
   }
   p=ggplot(data=df)+
-    geom_point(aes(x=37*Init_Measurement,y=37*Follow_Measurement),size=1,alpha=0.45)+
+    geom_point(aes(x=37*Init_Measurement,y=37*Follow_Measurement),size=1,alpha=0.25)+
     geom_abline(aes(slope=1,intercept=0))+
     ggtitle(title)+
     geom_text(x=50,y=1000,hjust=0,
               label=paste0("Temporal difference [",d_lb,", ",d_ub,")"),
               fontface="plain",size=3)+
     geom_text(x=50,y=900,hjust=0,
-              label=paste0("Long duration [",l_lb,", ",l_ub,")"),
+              label=paste0("Measurement Length [",l_lb,", ",l_ub,")"),
               fontface="plain",size=3)+
     geom_text(x = 50, y = 800,hjust=0,
               label = lm_eqn(df=df), parse = TRUE,size=3)+
@@ -489,7 +541,7 @@ fig3=cowplot::plot_grid(f3pa,f3pb,f3pc,
                         f3pg,f3ph,f3pi,
                         f3pj,f3pk,f3pl,
                         nrow=4,labels = c("A","B","C","D","E","F","G","H","I","J","K","L"))
-cowplot::ggsave2("Figure3.pdf",plot=fig3,width = 9,height = 16)
+cowplot::ggsave2("Figure3.pdf",plot=fig3,width = 9,height = 16,device = cairo_pdf)
 
 #Figure 3. the histogram and density curve of short- and long-term measurements----------
 load(file="Merged_Measurements_201031.RData")
