@@ -24,3 +24,6 @@ Regional Radon Model to-do list
 4. Figure 4: Spatial distribution of MAE, MRE and the variable importance.
 5. Figure 5: Multi-panel maps of predictions.
 ++ All coding works have been done. Write a manuscript as beautiful as the figures!
+++ List a few types of red-flag ZIPCODE-level measurement
++++ 1. Most of measurements start on the same day, indicating they were operated by the same agent (ZIPCODE=53098, Month=11, Year=2014).
++++ 2. The KitNumber of most measurements are continuous, indicating bulk order of sampler (ZIPCODE=53098, Month=11, Year=2014).
