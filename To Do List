@@ -27,3 +27,5 @@ Regional Radon Model to-do list
 ++ List a few types of red-flag ZIPCODE-level measurement
 +++ 1. Most of measurements start on the same day, indicating they were operated by the same agent (ZIPCODE=53098, Month=11, Year=2014).
 +++ 2. The KitNumber of most measurements are continuous, indicating bulk order of sampler (ZIPCODE=53098, Month=11, Year=2014).
+++Improve the model performance by log transform the measurements first and scale it back at the end of model
+++Try to predict not only the averge of log(Mean), but also the variance of the log transformed concentration. This can be used to generate a histogram and predict the likelihood of < 2pCi/L and < 4pCi/L
