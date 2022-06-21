@@ -94,7 +94,7 @@ hpbl=stack(here::here("Data","Metero","hpbl.mon.mean.nc"))
 rhum=stack(here::here("Data","Metero","rhum.2m.mon.mean.nc"))
 snowc=stack(here::here("Data","Metero","snowc.mon.mean.nc"))
 soilm=stack(here::here("Data","Metero","soilm.mon.mean.nc"))
-acpcp=stack(here::here("Data","Metero","acpcp.mon.mean.nc"))
+apcp=stack(here::here("Data","Metero","apcp.mon.mean.nc"))
 tsoil=stack(here::here("Data","Metero","tsoil.mon.mean.nc"))
 soilw=stack(here::here("Data","Metero","soilw.mon.mean.nc"))
 pres=stack(here::here("Data","Metero","pres.sfc.mon.mean.nc"))
@@ -114,7 +114,7 @@ for(year in 2001:2021){
     }
     
     Sys.time()
-    m_acpcp<-extract_feature(acpcp[[slice]],zipcode_pdm_xy)
+    m_apcp<-extract_feature(apcp[[slice]],zipcode_pdm_xy)
     m_soilm<-extract_feature(soilm[[slice]],zipcode_pdm_xy)
     m_snowc<-extract_feature(snowc[[slice]],zipcode_pdm_xy)
     m_rhum<-extract_feature(rhum[[slice]],zipcode_pdm_xy)
@@ -127,9 +127,9 @@ for(year in 2001:2021){
     m_soilw<-extract_feature(soilw[[slice]],zipcode_pdm_xy)
     m_pres<-extract_feature(pres[[slice]],zipcode_pdm_xy)
     Sys.time()
-    m<-bind_cols(zipcode_pdm_xy,m_uwnd,m_vwnd,m_temp,m_albedo,m_hpbl,m_rhum,m_snowc,m_soilm,m_acpcp,m_soilt,m_soilw,m_pres)
-    names(m)[2:13]<-c("uwnd","vwnd","temp","albedo","hpbl","rhum","snowc","soilm","pcp","soilt","soilw","pres")
-    for(cols in c("uwnd","vwnd","temp","albedo","hpbl","rhum","snowc","soilm","pcp","soilt","soilw","pres")){
+    m<-bind_cols(zipcode_pdm_xy,m_uwnd,m_vwnd,m_temp,m_albedo,m_hpbl,m_rhum,m_snowc,m_soilm,m_apcp,m_soilt,m_soilw,m_pres)
+    names(m)[2:13]<-c("uwnd","vwnd","temp","albedo","hpbl","rhum","snowc","soilm","apcp","soilt","soilw","pres")
+    for(cols in c("uwnd","vwnd","temp","albedo","hpbl","rhum","snowc","soilm","apcp","soilt","soilw","pres")){
       m=borrow_from_ngbs(m,col_name = cols)
     }
     m$year=year

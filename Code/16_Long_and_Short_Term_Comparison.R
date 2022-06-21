@@ -407,7 +407,7 @@ bound_sf<-st_as_sf(bound)
 bound_sf=st_transform(bound_sf,crs="+proj=utm +zone=16 +datum=WGS84")
 result_data=result_data%>%mutate(Gap_Category=as.factor((Diff_Days>=7)+(Diff_Days>=28)+(Diff_Days>=90)))%>%
   arrange(desc(-Diff_Days))
-colors= c("#a6cee3","#1f78b4","#b2df8a","#33a02c")
+colors= c("#1f78b4","#a6cee3","#33a02c","#b2df8a")
 us_map=ggplot()+
   geom_sf(data=bound_sf%>%filter(STUSPS%in%c(state.abb[c(1,3:10,12:50)])),fill="white")+
   geom_sf(data=result_data%>%filter(State%in%c(state.abb[c(1,3:10,12:50)]),Gap_Category=="3"),
@@ -421,7 +421,7 @@ us_map=ggplot()+
   scale_color_manual("Temporal difference between \n the long- and short-term measurements",
                      breaks = c("Cat1","Cat2","Cat3","Cat4"),
                      values =colors,
-                     labels=c("Cat I","Cat II","Cat III","Cat IV"),
+                     labels=c("[0,7) Days","[7,30) Days","[30,90) Days","[90,180) Days"),
                      guide=guide_legend(direction = "horizontal",
                                         title.position = "left",
                                         label.position = "bottom",
@@ -442,16 +442,16 @@ us_map=ggplot()+
 h_duration=ggplot()+
   geom_histogram(data=result_data,aes(x=long_duration,y=..density..,fill=Gap_Category),
                  binwidth = 4,color="black",alpha=0.75)+
-  coord_cartesian(xlim = c(85,370),ylim = c(0,0.14),clip = "on",expand = F)+
+  coord_cartesian(xlim = c(85,370),ylim = c(0,0.16),clip = "on",expand = F)+
   scale_fill_manual(breaks = c("0","1","2","3"),
                     values =colors)+
-  geom_vline(aes(xintercept=c(90,120,270,366)))+
-  geom_text(aes(x=105,y=0.13,label="Sub A"))+
-  geom_text(aes(x=195,y=0.13,label="Sub B"))+
-  geom_text(aes(x=318,y=0.13,label="Sub C"))+
-  xlab("Duration of long-term measurements (days)")+
+  geom_vline(aes(xintercept=c(120,270,366)))+
+  geom_text(aes(x=105,y=0.14,label="[90,120) Days"),size=3)+
+  geom_text(aes(x=195,y=0.14,label="[120,270) Days"),size=3)+
+  geom_text(aes(x=318,y=0.14,label="[270, 366) Days"),size=3)+
+  xlab("Length of Long-term Measurements (Days)")+
   ylab("Probability")+
-  scale_x_continuous(breaks = c(90,120,270,365))+
+  scale_x_continuous(breaks = c(120,270,365))+
   theme_bw()+
   theme(
     axis.title = element_text(size=11),

@@ -9,6 +9,7 @@ library(sf)
 library(ggplot2)
 library(ggsn)
 library(cowplot)
+library(xlsx)
 
 #Load constant parameters-------------------------------------------
 States=c("MA","NH","ME","VT","CT","RI","NY","PA","MD","NJ","DE",
@@ -16,7 +17,7 @@ States=c("MA","NH","ME","VT","CT","RI","NY","PA","MD","NJ","DE",
 
 Neighbour_States=c("WV","KY","VA","CO","WV","MT","OK","AR","TN","NC")
 
-load(file="Merged_Measurements_201031.RData")
+load(file="Merged_Measurements_220610.RData")
 
 load(here::here("Data","GeoData","2015_Shapes.RData"))
 sf::sf_use_s2(FALSE)
@@ -104,10 +105,27 @@ lab_data[lab_data$Floor=="unknown","Floor"]="Unknown"
 lab_data=lab_data%>%filter(Method!="AT",
                            TestState%in%c(States,Neighbour_States),
                            Floor%in%c("Basement","First","Second"))
-##Remove the measurements, if there're too many measurements from the same building (commercial)-----
+##Remove the measurements, if duration of AirChek is over 7 days and durations of LS/AC is over 4 days
+lab_data$duration=lab_data$EndDate-lab_data$StartDate
+lab_data=lab_data%>%filter(!is.na(duration))
+lab_data=lab_data%>%filter(duration>0,duration<8)
+lab_data=lab_data%>%filter((Method=="AC"&duration<5)||
+                           (Method=="LS"&duration<5)||
+                           (Method=="LS"&duration<8))
+##Remove the measurements, if there're too many measurements from the same building (commercial)--------------------
 multiple_ids=lab_data%>%group_by(ID)%>%summarise(n=length(ID))
 multiple_ids=multiple_ids%>%filter(n>5)
 lab_data=lab_data%>%filter(!ID%in%multiple_ids$ID)
+##Remove the measurements, if they use the Device with continuous KitNumber in the same ZIPCode and month of year----
+lab_data$Month=month(lab_data$StartDate)
+lab_data$Year=year(lab_data$StartDate)
+lab_data=lab_data%>%arrange(TestPostalCode,Floor,DeviceNumber,StartDate)
+lab_data$continuous_kitnumber=c(1000,diff(lab_data$DeviceNumber))
+lab_data$continuous_kitnumber=abs(lab_data$continuous_kitnumber)<3
+lab_data$overlap_day=c(100,diff(lab_data$StartDate))
+lab_data$overlap_day=abs(lab_data$overlap_day)<4
+lab_data$bulkorder=lab_data$continuous_kitnumber&lab_data$overlap_day
+lab_data=lab_data%>%filter(!bulkorder)
 #Take the average of collocated measurements
 coloc_data=lab_data%>%group_by(ID,StartDate,EndDate,TestState,TestPostalCode,Floor,Method)%>%summarise(n=length(ID),Conc=mean(PCI.L))
 ##Only select the first measurement of the ID--------------------------------
@@ -119,14 +137,60 @@ multiple_ids_date=coloc_data%>%group_by(ID)%>%summarise(First_Start_Date=min(Sta
 coloc_data=coloc_data%>%left_join(multiple_ids_date)
 coloc_data=coloc_data%>%filter(StartDate==First_Start_Date)
 coloc_data=coloc_data%>%filter(!is.na(Conc))
+#About 99.9 percentile. So we didn't delete lots of measurements
 coloc_data=coloc_data%>%filter(Conc<100)
 
-#Replace zero concentration with 0.15 pCi/L
-coloc_data[coloc_data$Conc==0,"Conc"]=0.15
-save(coloc_data,file="Cleaned_Raw_Data_0220.RData")
+#Replace zero concentration with random number
+set.seed(12345)
+coloc_data[coloc_data$Conc==0&coloc_data$Method!="AirChek","Conc"]=
+  runif(nrow(coloc_data[coloc_data$Conc==0&coloc_data$Method!="AirChek",]),min=0.01,max=0.4)
+coloc_data[coloc_data$Conc==0&coloc_data$Method=="AirChek","Conc"]=
+  runif(nrow(coloc_data[coloc_data$Conc==0&coloc_data$Method=="AirChek",]),min=0.01,max=0.1)
+save(coloc_data,file="Cleaned_Raw_Data_0610.RData")
+
+## [Table 1]Summarize the data in different stratifications----------------
+write_t1_row=function(data=coloc_data){
+  n=nrow(data)
+  temp_t=data%>%group_by(Floor=="Basement")%>%summarise(n=length(Floor),
+                                                        median=median(37*Conc),
+                                                        q1=quantile(37*Conc,0.25),
+                                                        q3=quantile(37*Conc,0.75))
+  temp_t$text=paste0(formatC(temp_t$median, digits = 1,format = "f")," (",
+                     formatC(temp_t$q1, digits = 1,format = "f"),", ",
+                     formatC(temp_t$q3, digits = 1,format = "f"),")")
+  temp_t$nice_num=formatC(temp_t$n, format="d", big.mark=",")
+  
+  row=t(c(temp_t[2,"n"],temp_t[2,"text"],temp_t[1,"n"],temp_t[1,"text"]))
+}
+
+r1=write_t1_row(data=coloc_data)
+r2=write_t1_row(data=coloc_data%>%filter(TestState%in%c("MA","NH","VT","ME","CT","RI")))
+r3=write_t1_row(data=coloc_data%>%filter(TestState%in%c("NY","PA","MD","NJ","DE")))
+r4=write_t1_row(data=coloc_data%>%filter(TestState%in%c("IL","IN","MI","OH","WI")))
+r5=write_t1_row(data=coloc_data%>%filter(TestState%in%c("IA","MN","MO","KS","NE","SD","ND")))
+r6=write_t1_row(data=coloc_data%>%filter(TestState%in%Neighbour_States))
+
+r7=write_t1_row(data=coloc_data%>%filter(lubridate::month(StartDate)%in%c(12,1,2)))
+r8=write_t1_row(data=coloc_data%>%filter(lubridate::month(StartDate)%in%c(3,4,5)))
+r9=write_t1_row(data=coloc_data%>%filter(lubridate::month(StartDate)%in%c(6,7,8)))
+r10=write_t1_row(data=coloc_data%>%filter(lubridate::month(StartDate)%in%c(9,10,11)))
+
+r11=write_t1_row(data=coloc_data%>%filter(lubridate::year(StartDate)%in%c(2001,2002,2003,2004,2005)))
+r12=write_t1_row(data=coloc_data%>%filter(lubridate::year(StartDate)%in%c(2006,2007,2008,2009,2010)))
+r13=write_t1_row(data=coloc_data%>%filter(lubridate::year(StartDate)%in%c(2011,2012,2013,2014,2015)))
+r14=write_t1_row(data=coloc_data%>%filter(lubridate::year(StartDate)%in%c(2016,2017,2018,2019,2020)))
+
+r15=write_t1_row(data=coloc_data%>%filter(Method=="LS"))
+r16=write_t1_row(data=coloc_data%>%filter(Method=="AC"))
+r17=write_t1_row(data=coloc_data%>%filter(Method=="AirChek"))
+
+table1=rbind(r1,r2,r3,r4,r5,r6,
+             r7,r8,r9,r10,r11,
+             r12,r13,r14,r15,r16,r17)
+write.xlsx(x=table1,file="Table1.xlsx")
 
 ## [Figure 1]Create a plot for the point-base data-------------
-load(file="Cleaned_Raw_Data_0220.RData")
+load(file="Cleaned_Raw_Data_0610.RData")
 coloc_data_vis=coloc_data%>%left_join(zip_centroid,by=c("TestPostalCode"="ZIPCODE"))
 coloc_data_vis=coloc_data_vis%>%filter(!is.na(x))
 exclude_pattern = 
@@ -185,7 +249,7 @@ panel_b=panel_b+
 fig1=cowplot::plot_grid(panel_a,panel_b,nrow = 2,labels = c("A","B"))
 cowplot::save_plot("Fig1.pdf",base_height = 9,base_width = 9,plot=fig1)
 ## [Figure 2]Plot the seasonal trend in radon concentrations----------------
-load(file="Cleaned_Raw_Data_0220.RData")
+load(file="Cleaned_Raw_Data_0610.RData")
 monthly_mean=coloc_data%>%group_by(Floor=="Basement",month(StartDate),year(StartDate))%>%
   summarise(m=geoMean(Conc),lb=quantile(Conc,0.25),ub=quantile(Conc,0.75))
 month_name_table=cbind.data.frame(1:12,month.abb)
@@ -237,23 +301,26 @@ fig2=ggplot(data=monthly_mean)+
               legend.box.margin = margin(1,1,1,1,unit = "pt"))
 ggsave("Fig2.pdf",plot = fig2,width = 9,height = 5,units = "in",device = cairo_pdf)
 ##Calculate the monthly geoMean of ZIP Codes----------------------
+load(file="Cleaned_Raw_Data_0610.RData")
 monthly_summ=coloc_data%>%group_by(TestPostalCode,TestState,
-                                   month(StartDate),year(StartDate),Floor=="Basement")%>%
+                                   month(StartDate),year(StartDate))%>%
                           summarise(n=length(ID),
                                     m_Conc=geoMean(Conc),
                                     sd_Conc=geoSD(Conc),
+                                    perc_Imp=mean(((Conc<0.1)&(Method=="AirChek"))||((Conc<0.4)&(Method!="AirChek"))),
+                                    perc_Basment=mean(Floor=="Basement"),
                                     perc_AC=mean(Method=="AC"),
                                     perc_LS=mean(Method=="LS"),
                                     per_Chek=mean(Method=="AirChek"))
-names(monthly_summ)=c("ZIPCODE","State","Month","Year","Basement","N","Mean_Conc","SD_Conc","Perc_AC","Perc_LS","Perc_AirChek")
+names(monthly_summ)=c("ZIPCODE","State","Month","Year","N","Mean_Conc","SD_Conc","Per_LDL","Per_Basement","Perc_AC","Perc_LS","Perc_AirChek")
 
 ##Select monthly/ZIP Code with over 5 measurements
-training_summ=monthly_summ%>%filter(N>4)
-
-save(training_summ,file = "Regional_Training.RData")
+#training_summ=monthly_summ%>%filter(N>4)
+training_summ=monthly_summ
+save(training_summ,file = "Regional_Training_Without_Predictors_220610.RData")
 
 #Connecting Training Dataset with Predictors------------
-load("Regional_Training.RData")
+load(file="Regional_Training.RData")
 #The actual working process should be binding predictors to all months & zipcodes
 #Then attach some of them to the training dataset, the rest of them can be used to 
 #make the final prediction. So, script named 18(for spatial only) and 19 (time and space)

@@ -47,16 +47,19 @@ pattern <- function(x, size, pattern) {
 
 
 #Load the validation files [No need to run every time]------------------------
-#files=list.files("/n/holyscratch01/koutrakis_lab/Users/loli/ST_RF_10000_2_5000/",recursive = T)
-files=list.files("/n/holyscratch01/koutrakis_lab/Users/loli/ST_RF/",recursive = T)
+r=500000
+d=3
+k=15000
+folder=paste0("ST_RF_",r,"_",k,"_",d)
 
+files=list.files(paste0("/n/holyscratch01/koutrakis_lab/Users/loli/",folder),recursive = T)
+print(paste(Sys.time(),"A total of ",length(files),"Files"))
 test_result=list()
 l=1
 for( f in files){
-  #load(paste0("/n/holyscratch01/koutrakis_lab/Users/loli/ST_RF_10000_2_5000/",f))
-  size=file.size(paste0("/n/holyscratch01/koutrakis_lab/Users/loli/ST_RF/",f))
+  size=file.size(paste0("/n/holyscratch01/koutrakis_lab/Users/loli/",folder,"/",f))
   if(size>0){
-    load(paste0("/n/holyscratch01/koutrakis_lab/Users/loli/ST_RF/",f))
+    load(paste0("/n/holyscratch01/koutrakis_lab/Users/loli/",folder,"/",f))
     test_result[[l]]=test
     l=l+1
     if(l%%1000==0){
@@ -65,12 +68,25 @@ for( f in files){
   }
 }
 test_result=bind_rows(test_result)
-corr(test_result[test_result$Basement==1,c("local_pred","Mean_Conc")],test_result[test_result$Basement==1,"N"])
-corr(test_result[test_result$Basement==0,c("local_pred","Mean_Conc")],test_result[test_result$Basement==0,"N"])
-save(file = here::here("Data","Medium Data","NE_MW_Regional_Model_Data","ST_RF_Performance_5000_2_5000.RData"),test_result)
+test_result=test_result%>%filter(N>4)
+test_result%>%group_by(N)%>%summarise(c=cor(local_pred,Mean_Conc),
+                                      n=length(local_pred))%>%ggplot()+geom_point(aes(x=N,y=c))+xlim(c(0,30))
+test_result%>%group_by(as.integer(N/5))%>%summarise(c=cor(local_pred,Mean_Conc),
+                                                     n=length(local_pred))
+test_result%>%group_by(N>9,Per_Basement>=0.75)%>%summarise(c=mltools::rmse(local_pred,Mean_Conc,N))
+test_result%>%group_by(N>9,Per_Basement>=0.5)%>%summarise(c=mltools::rmse(local_pred,Mean_Conc,N))
+
+test_result%>%group_by(N>19,Per_Basement>=0.75)%>%summarise(c=cor(local_pred,Mean_Conc))
+test_result%>%group_by(N>19,Per_Basement>=0.75)%>%summarise(c=mltools::rmse(local_pred,Mean_Conc,N))
+test_result%>%group_by(N>19,Per_Basement>=0.75)%>%summarise(c=weighted.mean(abs(local_pred-Mean_Conc),N))
+
+
+corr(test_result[,c("local_pred","Mean_Conc")],w=test_result$N)
+save(file = here::here("Data","Medium Data","NE_MW_Regional_Model_Data",
+                       paste0("ST_RF_Performance_",r,"_",k,"_",d,".RData")),test_result)
 
 #Figure 3 the correlation between observed and predicted concentrations----------------
-load(file = here::here("Data","Medium Data","NE_MW_Regional_Model_Data","ST_RF_Performance_5000_2_5000.RData"))
+load(file = here::here("Data","Medium Data","NE_MW_Regional_Model_Data","ST_RF_Performance_5e+05_15000_3.RData"))
 load(paste0("/n/koutrakis_lab/lab/Radon_Mortality/Data/Medium Data/NE_MW_Regional_Model_Data/Scratch_Copies/Regional_Training_",random_num=sample(1:10,1),".RData"))
 zipcode_state_table=unique(training_data[,c("ZIPCODE","State")])
 
@@ -79,23 +95,19 @@ States=c("MA","NH","ME","VT","CT","RI","NY","PA","MD","NJ","DE",
          "IL","OH","MI","WI","IN","IA","MN","MO","KS","NE","SD","ND")
 
 test_result=test_result%>%arrange(N)
-m_base=rlm(local_pred~Mean_Conc,weights=N,data=test_result%>%filter(N>9,Basement==1))
-m_above=rlm(local_pred~Mean_Conc,weights=N,data=test_result%>%filter(N>9,Basement==0))
 
-m_base_large=rlm(local_pred~Mean_Conc,weights=N,data=test_result%>%filter(N>19,Basement==1))
-m_above_large=rlm(local_pred~Mean_Conc,weights=N,data=test_result%>%filter(N>19,Basement==0))
-
-create_scatter=function(df,Basement=T,add_legend=T,
+create_scatter=function(df,add_legend=T,Basement=T,
                         xlab_str=expression('Observed ZCTA-level Radon (Bq/m'^3*')'),
                         ylab_str=expression('Predicted ZCTA-level Radon (Bq/m'^3*')')){
   m=rlm(local_pred~Mean_Conc,weights=N,data=df)
   if(Basement){
     p_fill="#B22234"
-    legend_title="Number of \nBasement\nMeasurements"
+    legend_title="Number of\nMeasurements"
   }else{
     p_fill="#3C3B6E"
-    legend_title="Number of \nAboveground\nMeasurements"
+    legend_title="Number of \nMeasurements"
   }
+
   p=ggplot(data=df)+
     geom_point(aes(x=37*Mean_Conc,y=37*local_pred,size=N),fill=p_fill,shape=21,color="gray75")+
     geom_abline(intercept = 37*m$coefficients[1],
@@ -106,10 +118,10 @@ create_scatter=function(df,Basement=T,add_legend=T,
     geom_text(x = 350, y = 25, 
               label = lm_eqn(df=df), parse = TRUE)+
     scale_radius(name=legend_title,
-                 breaks = c(10,50,100,250,500),
-                 labels = c(10,50,100,250,500),
-                 limits = c(10,500),
-                 range = c(0.15,5),
+                 breaks = c(5,10,50,100,250,500),
+                 labels = c(5,10,50,100,250,500),
+                 limits = c(5,500),
+                 range = c(0.1,5),
                  trans = "log")+
     coord_fixed(ratio = 1,xlim=c(0,500),ylim=c(0,500))+
     theme_bw()+
@@ -125,26 +137,62 @@ create_scatter=function(df,Basement=T,add_legend=T,
   return(p)
 }
 
-p_base=create_scatter(df=test_result%>%filter(N>9,Basement==1),Basement = T,add_legend = F,xlab_str = " ",ylab_str = " ")
-p_base_large=create_scatter(df=test_result%>%filter(N>29,Basement==1),Basement = T,add_legend = T)
+p_small=create_scatter(df=test_result%>%filter(N>4,N<10),Basement = T,add_legend = F,xlab_str = " ",ylab_str = " ")
+p_medium=create_scatter(df=test_result%>%filter(N>9,N<20),Basement = T,add_legend = F,xlab_str = " ",ylab_str = " ")
+p_large=create_scatter(df=test_result%>%filter(N>19,N<30),Basement = T,add_legend = F,xlab_str = " ",ylab_str = " ")
+p_huge=create_scatter(df=test_result%>%filter(N>29),Basement = T,add_legend = F,xlab_str = " ",ylab_str = " ")
 
-p_above=create_scatter(df=test_result%>%filter(N>9,Basement==0),Basement = F,add_legend = F,xlab_str = " ",ylab_str = " ")
-p_above_large=create_scatter(df=test_result%>%filter(N>19,Basement==0),Basement = F,add_legend = T,xlab_str = " ",ylab_str = " ")
+
+
+p_base=create_scatter(df=test_result%>%filter(N>19,Per_Basement<0.75),Basement = T,add_legend = F,xlab_str = " ",ylab_str = " ")
+p_base_large=create_scatter(df=test_result%>%filter(N>19,Per_Basement>0.75),Basement=T,add_legend = T)
+
+p_above=create_scatter(df=test_result%>%filter(N>9,Per_Basement<0.5),Basement = F,add_legend = F,xlab_str = " ",ylab_str = " ")
+p_above_large=create_scatter(df=test_result%>%filter(N>29,Per_Basement<0.5),Basement = F,add_legend = T,xlab_str = " ",ylab_str = " ")
 
 fig3=cowplot::plot_grid(p_base,p_above,p_base_large,p_above_large,
                    nrow=2,labels = c("A","B","C","D"))
 cowplot::save_plot("Fig3.pdf",base_height = 9,base_width = 9,plot = fig3)
 
-t=test_result%>%filter(State%in%States,N>9)%>%
-  #group_by(State)%>%
-  group_by(Basement)%>%
-  summarise(cor=corr(d=cbind.data.frame(local_pred,Mean_Conc),w=N),s=length(N),
-            me=mean(local_pred-Mean_Conc),
-            mae=mean(abs(local_pred-Mean_Conc)),
-            mre=mean(abs(local_pred-Mean_Conc)/Mean_Conc))
+#[Table 2] Calculate the overall CV results--------------- 
+calculate_cv=function(data,cat){
+  t=data%>%
+    group_by(Per_Basement>0.5)%>%
+    summarise(cor=corr(d=cbind.data.frame(local_pred,Mean_Conc),w=N)^2,s=length(N),
+              me=37*mean(local_pred-Mean_Conc),
+              mae=37*mean(abs(local_pred-Mean_Conc)),
+              mre=mean(abs(local_pred-Mean_Conc)/Mean_Conc))
+  t=cbind(t[2,2:6],t[1,2:6])
+  t=cbind(t,cat)
+  return(t)
+}
 
-month_trend=test_result%>%filter(State%in%States,N>9)%>%group_by(Month,Basement)%>%summarise(c=corr(cbind.data.frame(local_pred,Mean_Conc),N))
-annual_trend=test_result%>%filter(State%in%States,N>9)%>%group_by(Year,Basement)%>%summarise(c=corr(cbind.data.frame(local_pred,Mean_Conc),N))
+NE_States=c("VT","NH","ME","MA","CT","RI")
+MA_States=c("NY","PA","MD","NJ","DE")
+CNE_States=c("IL","OH","MI","WI","IN")
+CNW_States=c("IA","MN","MO","KS","NE","SD","ND")
+
+cutoff=9
+
+all_cv=calculate_cv(data=test_result%>%filter(N>cutoff),cat = "All")
+
+ne_cv=calculate_cv(data=test_result%>%filter(State%in%NE_States,N>cutoff),cat = "New England")
+ma_cv=calculate_cv(data=test_result%>%filter(State%in%MA_States,N>cutoff),cat="Mid Atlantic")
+cne_cv=calculate_cv(data=test_result%>%filter(State%in%CNE_States,N>cutoff),cat="East North Central")
+cnw_cv=calculate_cv(data=test_result%>%filter(State%in%CNW_States,N>cutoff),cat=" West North Central")
+out_cv=calculate_cv(data=test_result%>%filter(!State%in%States,N>cutoff),cat=" Outside")
+
+winter_cv=calculate_cv(data=test_result%>%filter(State%in%States,Month%in%c(12,1,2),N>cutoff), cat="Winter")
+spring_cv=calculate_cv(data=test_result%>%filter(State%in%States,Month%in%c(3,4,5),N>cutoff), cat="Spring")
+summer_cv=calculate_cv(data=test_result%>%filter(State%in%States,Month%in%c(6,7,8),N>cutoff), cat="Summer")
+autumn_cv=calculate_cv(data=test_result%>%filter(State%in%States,Month%in%c(9,10,11),N>cutoff), cat="Autumn")
+
+y1_cv=calculate_cv(data=test_result%>%filter(State%in%States,Year>=2001,Year<=2005,N>cutoff), cat= "2001-2005")
+y2_cv=calculate_cv(data=test_result%>%filter(State%in%States,Year>=2006,Year<=2010,N>cutoff), cat = "2006-2010")
+y3_cv=calculate_cv(data=test_result%>%filter(State%in%States,Year>=2011,Year<=2015,N>cutoff), cat= "2011-2015")
+y4_cv=calculate_cv(data=test_result%>%filter(State%in%States,Year>=2015,Year<=2020,N>cutoff), cat= "2016-2020")
+
+table_2=rbind(all_cv,ne_cv,ma_cv,cne_cv,cnw_cv,out_cv,winter_cv,spring_cv,summer_cv,autumn_cv,y1_cv,y2_cv,y3_cv,y4_cv)
 
 library(ggplot2)
 library(sf)

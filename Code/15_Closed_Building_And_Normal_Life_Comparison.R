@@ -39,12 +39,23 @@ Neighbour_States=c("WV","KY","VA","CO","WV","MT","OK","AR","TN","NC")
 ma_lab_data<-read.csv("/n/koutrakis_lab/lab/Group_Data/Radon/HSPH_Export_MA_190628.csv",header=T)
 ma_lab_data$TestPostalCode=as.character(ma_lab_data$TestPostalCode)
 
+ma_lab_data2<-read.csv("/n/koutrakis_lab/lab/Group_Data/Radon/HSPH_20220430_MA.csv",header=F)
+names(ma_lab_data2)=names(ma_lab_data)
+ma_lab_data2$TestPostalCode=as.character(ma_lab_data2$TestPostalCode)
+ma_lab_data=bind_rows(ma_lab_data,ma_lab_data2)
+
 pa_lab_data<-read.csv("/n/koutrakis_lab/lab/Group_Data/Radon/HSPH_Export_PA_190628.csv",header=T)
 pa_lab_data$TestPostalCode<-as.character(pa_lab_data$TestPostalCode)
 
 pa_lab_data_2<-read.csv("/n/koutrakis_lab/lab/Group_Data/Radon/HSPH_Export_PA_190701_201031.csv",header=T)
 pa_lab_data_2$TestPostalCode<-as.character(pa_lab_data_2$TestPostalCode)
-pa_lab_data=bind_rows(pa_lab_data,pa_lab_data_2)
+
+pa_lab_data_3<-read.csv("/n/koutrakis_lab/lab/Group_Data/Radon/HSPH_20220430_PA.csv",header=F)
+pa_lab_data_3=pa_lab_data_3[,c(1,3:16)]
+names(pa_lab_data_3)=names(pa_lab_data)
+pa_lab_data_3$TestPostalCode<-as.character(pa_lab_data_3$TestPostalCode)
+
+pa_lab_data=bind_rows(pa_lab_data,pa_lab_data_2,pa_lab_data_3)
 
 as_data=bind_rows(ma_lab_data,pa_lab_data)
 as_data$ID=paste0(as_data$Checksum_TestAddress,as_data$TestPostalCode)
@@ -63,7 +74,7 @@ as_data$EndDate<-as.Date(as_data$EndDate,"%m/%d/%Y")
 as_data$PCI.L=as.numeric(as.character(as_data$Result))
 as_data[is.na(as_data$PCI.L),"PCI.L"]=0
 
-as_data=as_data[,c("StartDate","EndDate","Checksum_TestAddress","TestState","TestPostalCode","Floor","Result","Method","PCI.L","ID")]
+as_data=as_data[,c("StartDate","EndDate","Checksum_TestAddress","TestState","TestPostalCode","Floor","Result","Method","PCI.L","ID","DeviceNumber")]
 as_data$TestState=as.character(as_data$TestState)
 as_data$Floor=as.character(as_data$Floor)
 as_data$Result=as.character(as_data$Result)
@@ -86,7 +97,7 @@ nc_data$ID=paste0(nc_data$FINGERPRINT,nc_data$PostalCode)
 nc_data$ZIPCODE=substr(nc_data$POSTALCODE,1,5)
 nc_data$FLOOR=as.character(nc_data$FLOOR)
 nc_data$Result=as.character(nc_data$PCI.L)
-nc_data=nc_data[,c("STARTDATE","ENDDATE","FINGERPRINT","STATE","ZIPCODE","FLOOR","Result","METHOD","PCI.L","ID")]
+nc_data=nc_data[,c("STARTDATE","ENDDATE","FINGERPRINT","STATE","ZIPCODE","FLOOR","Result","METHOD","PCI.L","ID","KITNUMBER")]
 names(nc_data)=names(as_data)
 nc_data$Checksum_TestAddress=as.character(nc_data$Checksum_TestAddress)
 nc_data$TestState=as.character(nc_data$TestState)
@@ -96,7 +107,7 @@ nc_data=nc_data%>%filter(Method=="AC")
 nc_data$Method=("AirChek")
 
 lab_data=bind_rows(as_data,nc_data)
-save(lab_data,file="Merged_Measurements_201031.RData")
+save(lab_data,file="Merged_Measurements_220610.RData")
 ##Only save the AC/LS/AT Measurements------------
 lab_data=as_data
 load(file="Merged_Measurements_201031.RData")

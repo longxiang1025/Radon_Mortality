@@ -144,6 +144,34 @@ dist2fault<- st_distance(x = zipcode_pdm_xy, y= faults, by_element = TRUE)
 zipcode_Fault=zipcode_pdm_xy
 zipcode_Fault$dist2fault=as.numeric(dist2fault)
 save(file=here::here("Data","Medium Data","ZIP_Fault.RData"),zipcode_Fault)
+
+##Attaching magnetic anomaly data----------------
+mag<-raster(here::here("Data","USGS_Magnetic","Magnetic_Anomaly.tif"))
+zipcode_Mag=extract(mag,zipcode_pdm_xy)
+zipcode_Mag=bind_cols(zipcode_pdm_xy,zipcode_Mag)
+names(zipcode_Mag)[2]="Magnetic_Anomaly"
+zipcode_Mag=borrow_from_ngbs(zipcode_Mag,col_name = "Magnetic_Anomaly")
+save(file=here::here("Data","Medium Data","ZIP_Mag.RData"),zipcode_Mag)
+
+##Attaching gravity anomaly data----------------
+grav_iso<-raster(here::here("Data","USGS_Gravity","USgrv_iso_SDD_geog.tif"))
+proj4string(grav_iso)="+proj=longlat +ellps=GRS80 +datum=NAD83 +no_defs "
+zipcode_grav_iso=extract(grav_iso,zipcode_pdm_xy)
+zipcode_grav_iso=bind_cols(zipcode_pdm_xy,zipcode_grav_iso)
+names(zipcode_grav_iso)[2]="Gravity_Anomaly_ISO"
+zipcode_grav_iso=borrow_from_ngbs(zipcode_grav_iso,col_name = "Gravity_Anomaly_ISO")
+
+grav_bouguer<-raster(here::here("Data","USGS_Gravity","USgrv_cba_SDD_geog.tif"))
+proj4string(grav_bouguer)="+proj=longlat +ellps=GRS80 +datum=NAD83 +no_defs "
+zipcode_grav_bouguer=extract(grav_bouguer,zipcode_pdm_xy)
+zipcode_grav_bouguer=bind_cols(zipcode_pdm_xy,zipcode_grav_bouguer)
+names(zipcode_grav_bouguer)[2]="Gravity_Anomaly_Bouguer"
+zipcode_grav_bouguer=borrow_from_ngbs(zipcode_grav_bouguer,col_name = "Gravity_Anomaly_Bouguer")
+zipcode_Grav=bind_cols(zipcode_pdm_xy,zipcode_grav_iso$Gravity_Anomaly_ISO,zipcode_grav_bouguer$Gravity_Anomaly_Bouguer)
+names(zipcode_Grav)[2:3]=c("Grav_ISO","Grav_Bouguer")
+
+save(file=here::here("Data","Medium Data","ZIP_Grav.RData"),zipcode_Grav)
+
 ##Attaching housing information----------------------
 housing<-read.csv("/n/koutrakis_lab/lab/Group_Data/America Community Survey/ACS_Housing_Table.csv")
 housing$Geo_ZCTA5=formatC(housing$Geo_ZCTA5,width=5,flag=0)
@@ -219,31 +247,39 @@ zipcode_bam_upstairs$zipcode_bam_upstairs=exp(zipcode_bam_upstairs$zipcode_bam_u
 save(file=here::here("Data","Medium Data","ZIP_GAM_Upstairs.RData"),zipcode_bam_upstairs)
 
 #Combine All Spatial Predictors together----------------------------------------
-load(here::here("Data","Medium Data","ZIP_Radon_Potential.RData"))
+load(here::here("Data","Medium Data","NE_MW_Regional_Model_Data","ZIP_Radon_Potential.RData"))
 zipcode_Rn$geometry=NULL
 zipcode_geog=zipcode_pdm_xy%>%left_join(zipcode_Rn,by="ZIPCODE")
 
-load(here::here("Data","Medium Data","ZIP_Surface.RData"))
+load(here::here("Data","Medium Data","NE_MW_Regional_Model_Data","ZIP_Surface.RData"))
 zipcode_Surface$geometry=NULL
 zipcode_geog=zipcode_geog%>%left_join(zipcode_Surface,by="ZIPCODE")
 
-load(here::here("Data","Medium Data","ZIP_Soil.RData"))
+load(here::here("Data","Medium Data","NE_MW_Regional_Model_Data","ZIP_Soil.RData"))
 zipcode_Soil$geometry=NULL
 zipcode_geog=zipcode_geog%>%left_join(zipcode_Soil,by="ZIPCODE")
 
-load(here::here("Data","Medium Data","ZIP_Uranium.RData"))
+load(here::here("Data","Medium Data","NE_MW_Regional_Model_Data","ZIP_Uranium.RData"))
 zipcode_Uranium$geometry=NULL
 zipcode_geog=zipcode_geog%>%left_join(zipcode_Uranium,by="ZIPCODE")
 
-load(here::here("Data","Medium Data","ZIP_Topo.RData"))
+load(here::here("Data","Medium Data","NE_MW_Regional_Model_Data","ZIP_Topo.RData"))
 zipcode_Topo$geometry=NULL
 zipcode_geog=zipcode_geog%>%left_join(zipcode_Topo,by="ZIPCODE")
 
-load(here::here("Data","Medium Data","ZIP_Fault.RData"))
+load(here::here("Data","Medium Data","NE_MW_Regional_Model_Data","ZIP_Fault.RData"))
 zipcode_Fault$geometry=NULL
 zipcode_geog=zipcode_geog%>%left_join(zipcode_Fault,by="ZIPCODE")
 
-load(here::here("Data","Medium Data","ZIP_Housing.RData"))
+load(here::here("Data","Medium Data","NE_MW_Regional_Model_Data","ZIP_Mag.RData"))
+zipcode_Mag$geometry=NULL
+zipcode_geog=zipcode_geog%>%left_join(zipcode_Mag,by="ZIPCODE")
+
+load(here::here("Data","Medium Data","NE_MW_Regional_Model_Data","ZIP_Grav.RData"))
+zipcode_Grav$geometry=NULL
+zipcode_geog=zipcode_geog%>%left_join(zipcode_Grav,by="ZIPCODE")
+
+load(here::here("Data","Medium Data","NE_MW_Regional_Model_Data","ZIP_Housing.RData"))
 zipcode_House$geometry=NULL
 zipcode_geog=zipcode_geog%>%left_join(zipcode_House,by="ZIPCODE")
 
@@ -252,11 +288,11 @@ ses_factors<-env_exp%>%filter(year==2015)
 ses_factors=ses_factors%>%dplyr::select(ZIP,popdensity,medianhousevalue,medhouseholdincome,pct_owner_occ)
 zipcode_geog=zipcode_geog%>%left_join(ses_factors,by=c("ZIPCODE"="ZIP"))
 
-load(here::here("Data","Medium Data","ZIP_GAM_Upstairs.RData"))
+load(here::here("Data","Medium Data","NE_MW_Regional_Model_Data","ZIP_GAM_Upstairs.RData"))
 zipcode_bam_upstairs=zipcode_bam_upstairs%>%dplyr::select(ZIPCODE,zipcode_bam_upstairs)
 zipcode_geog=zipcode_geog%>%left_join(zipcode_bam_upstairs,by="ZIPCODE")
 
-load(here::here("Data","Medium Data","ZIP_GAM_Basement.RData"))
+load(here::here("Data","Medium Data","NE_MW_Regional_Model_Data","ZIP_GAM_Basement.RData"))
 zipcode_bam_basement=zipcode_bam_basement%>%dplyr::select(ZIPCODE,zipcode_bam_basement)
 zipcode_geog=zipcode_geog%>%left_join(zipcode_bam_basement,by="ZIPCODE")
 
