@@ -296,4 +296,10 @@ load(here::here("Data","Medium Data","NE_MW_Regional_Model_Data","ZIP_GAM_Baseme
 zipcode_bam_basement=zipcode_bam_basement%>%dplyr::select(ZIPCODE,zipcode_bam_basement)
 zipcode_geog=zipcode_geog%>%left_join(zipcode_bam_basement,by="ZIPCODE")
 
-save(file=here::here("Data","Medium Data","ZIP_Spatial_Predictor_All.RData"),zipcode_geog)
+save(file=here::here("Data","Medium Data","NE_MW_Regional_Model_Data","ZIP_Spatial_Predictor_All.RData"),zipcode_geog)
+
+#
+for(r in 1:250){
+  save(file=paste0("/n/holyscratch01/koutrakis_lab/Users/loli/Medium_Data/ZIP_Geog/ZIP_Geog_",r,".RData"),
+       zipcode_geog)
+}

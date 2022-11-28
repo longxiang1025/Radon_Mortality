@@ -248,6 +248,42 @@ panel_b=panel_b+
                  location="bottomright")
 fig1=cowplot::plot_grid(panel_a,panel_b,nrow = 2,labels = c("A","B"))
 cowplot::save_plot("Fig1.pdf",base_height = 9,base_width = 9,plot=fig1)
+## [Figure Supplement 1]Plot the percent of three types of detectors----------
+load(file = "Cleaned_Raw_Data_0610.RData")
+creat_fig_supp_1=function(data=coloc_data_vis,Type="AirChek"){
+  data$vis_column=as.numeric(data$Method==Type)
+  re_plot=ggplot(data=data)+
+    geom_sf(data=ca_shp,fill="gray95",size=0.75,alpha=0.75)+
+    geom_sf(data=bound_sf,fill="white")+
+    stat_summary_hex(aes(x=x,y=y,z=vis_column),color="gray",size=0.25,binwidth = 50000,fun = ~mean(.x)*(ifelse(length(.x)>5,1,NA)))+
+    geom_sf(data=bound_sf,fill=NA,color="black",size=0.25,alpha=0.5,show.legend = F)+
+    geom_sf(data=us_bound,fill=NA,size=0.85)+
+    geom_sf(data=extent_bound,fill=NA,color="Black",size=0.65)+
+    geom_sf(data=exclude_pattern,size=0.35,color="black")+
+    geom_sf(data=exclude_region,size=0.65,fill="white",alpha=0.75)+
+    geom_sf(data=extent_bound,fill=NA,color="Black",size=0.65)+
+    scale_fill_stepsn(paste0("Percnet of ",Type),
+                      breaks = seq(0,1,0.1),
+                      values = seq(0,1,0.1),
+                      limits=c(0,1),
+                      oob = scales::squish,
+                      colors = (RColorBrewer::brewer.pal(11,"PuBuGn")),
+                      guide = guide_colorsteps(direction = "vertical",
+                                               title.position = "right",
+                                               label.position = "right",
+                                               barwidth = unit(0.1, "inch"),
+                                               barheight=unit(4, "inch")))+
+    coord_sf(crs ="+proj=lcc +lon_0=-100 +lat_1=33 +lat_2=45",expand = F,clip = "on",
+             xlim = c(st_bbox(bound_sf%>%filter(STUSPS%in%States))[1]-25000,st_bbox(bound_sf%>%filter(STUSPS%in%States))[3]+80000),
+             ylim = c(st_bbox(bound_sf%>%filter(STUSPS%in%States))[2]-25000,st_bbox(bound_sf%>%filter(STUSPS%in%States))[4]+25000))+
+    theme_bw()+
+    common_theme
+  return(re_plot)
+}
+panel_s1_a=creat_fig_supp_1(data=coloc_data_vis,Type = "AirChek")
+panel_s1_b=creat_fig_supp_1(data=coloc_data_vis,Type = "AC")
+panel_s1_c=creat_fig_supp_1(data=coloc_data_vis,Type = "LS")
+fig_s1=cowplot::plot_grid(panel_s1_a,panel_s1_b,panel_s1_c,nrow=3)
 ## [Figure 2]Plot the seasonal trend in radon concentrations----------------
 load(file="Cleaned_Raw_Data_0610.RData")
 monthly_mean=coloc_data%>%group_by(Floor=="Basement",month(StartDate),year(StartDate))%>%
@@ -307,17 +343,22 @@ monthly_summ=coloc_data%>%group_by(TestPostalCode,TestState,
                           summarise(n=length(ID),
                                     m_Conc=geoMean(Conc),
                                     sd_Conc=geoSD(Conc),
+                                    m_log=mean(log(Conc)),
+                                    var_log=sd(log(Conc)),
+                                    over_2=mean(Conc>=2),
+                                    over_4=mean(Conc>=4),
                                     perc_Imp=mean(((Conc<0.1)&(Method=="AirChek"))||((Conc<0.4)&(Method!="AirChek"))),
                                     perc_Basment=mean(Floor=="Basement"),
                                     perc_AC=mean(Method=="AC"),
                                     perc_LS=mean(Method=="LS"),
                                     per_Chek=mean(Method=="AirChek"))
-names(monthly_summ)=c("ZIPCODE","State","Month","Year","N","Mean_Conc","SD_Conc","Per_LDL","Per_Basement","Perc_AC","Perc_LS","Perc_AirChek")
+names(monthly_summ)=c("ZIPCODE","State","Month","Year","N","Mean_Conc","SD_Conc","Mean_Log","SD_Log",
+                      "Over_2","Over_4","Per_LDL","Per_Basement","Perc_AC","Perc_LS","Perc_AirChek")
 
 ##Select monthly/ZIP Code with over 5 measurements
 #training_summ=monthly_summ%>%filter(N>4)
 training_summ=monthly_summ
-save(training_summ,file = "Regional_Training_Without_Predictors_220610.RData")
+save(training_summ,file = "Regional_Training_Without_Predictors_220621.RData")
 
 #Connecting Training Dataset with Predictors------------
 load(file="Regional_Training.RData")

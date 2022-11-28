@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH -p shared
+#SBATCH -p serial_requeue
 #SBATCH -n 1
 #SBATCH --mem=18000
 #SBATCH --account=zanobetti_lab

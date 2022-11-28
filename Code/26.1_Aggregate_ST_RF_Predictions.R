@@ -21,7 +21,7 @@ l=1
 for( f in files){
   if(file.size(paste0(fold_path,f))>0){
     load(paste0(fold_path,f))
-    pred_list[[l]]=pred
+    pred_list[[l]]=sf_pred
     l=l+1 
   }else{
     print(f)

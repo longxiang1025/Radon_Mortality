@@ -8,7 +8,7 @@ library(dplyr)
 prjstring<-"+proj=aea +lat_1=20 +lat_2=60 +lat_0=23 +lon_0=-96 +x_0=0 +y_0=0 +ellps=GRS80 +datum=WGS84 +units=m +no_defs "
 geoprjstring<-"+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs"
 
-load(file = "Regional_Training_Without_Predictors_220610.RData")
+load(file = "Regional_Training_Without_Predictors_220621.RData")
 training_summ=as.data.frame(training_summ)
 
 load(here::here("Data","GeoData","ZIP_CODE_Pop_Center.RData"))
@@ -36,7 +36,7 @@ training_data=training_data%>%dplyr::filter(ZIPCODE%in%zipcode_pdm_xy$ZIPCODE)
 training_data=training_data%>%dplyr::filter(!is.na(Single_Family))
 training_data=training_data%>%dplyr::filter(!is.na(popdensity))
 
-save(file=here::here("Data","Medium Data","NE_MW_Regional_Model_Data","Regional_Training_220610.RData"),training_data)
+save(file=here::here("Data","Medium Data","NE_MW_Regional_Model_Data","Regional_Training_220621.RData"),training_data)
 
 #save another 10 copies in scratch for following parallel computing 
 for (r in 1:50){

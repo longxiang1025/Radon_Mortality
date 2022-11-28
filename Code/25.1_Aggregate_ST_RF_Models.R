@@ -9,24 +9,41 @@ library(dplyr)
 library(boot)
 library(MASS)
 library(ggplot2)
+library(cowplot)
+library(egg)
 
 r2ww <- function(x){
   #The function to calculate weigthted R2 for rlm
-   SSe <- sum((x$w*x$resid)^2); #the residual sum of squares is weighted
-   observed <- x$resid+x$fitted;
-   SSt <- sum((x$w*(observed-mean(observed)))^2); #the total sum of squares is weighted      
-   value <- 1-SSe/SSt;
-   return(value);
+   #SSe <- sum((x$w*x$resid)^2); #the residual sum of squares is weighted
+   #observed <- x$resid+x$fitted;
+   #SSt <- sum((x$w*(observed-mean(observed)))^2); #the total sum of squares is weighted      
+   #value <- 1-SSe/SSt;
+  value=corr(cbind(x$fitted.values,x$fitted.values+x$residuals),w=x$weights) 
+  return(value);
   }
 
 lm_eqn <- function(df){
-  m <- rlm(local_pred~Mean_Conc,weights =N, df);
+  df$y=37*exp(df$Obs_Mean_Log)
+  df$x=37*exp(df$Pred_Mean_Log)
+  m <- rlm(y~x,weights =N, df);
   eq <- substitute(italic(y) == a + b %.% italic(x)*","~~italic(r)^2~"="~r2, 
-                   list(a = format(unname(37*coef(m)[1]), digits = 2),
-                        b = format(unname(coef(m)[2]), digits = 2),
+                   list(a = format(unname(coef(m)[1]), digits = 2,nsmall=1),
+                        b = format(unname(coef(m)[2]), digits = 2,nsmall=1),
+                        r2 = format(r2ww(m)^2, digits = 2,nsmall=2)))
+  as.character(as.expression(eq));
+}
+
+lm_eqn2<-function(df){
+  df$y=df$Obs_Over_4
+  df$x=df$Pred_Over_4
+  m <- rlm(y~x,weights =N, df);
+  eq <- substitute(italic(y) == a + b %.% italic(x)*","~~italic(r)^2~"="~r2, 
+                   list(a = format(unname(coef(m)[1]), digits = 2,nsmall=1),
+                        b = format(unname(coef(m)[2]), digits = 2,nsmall=1),
                         r2 = format(r2ww(m)^2, digits = 2)))
   as.character(as.expression(eq));
 }
+
 pattern <- function(x, size, pattern) {
   ex = list(
     horizontal = c(1, 2),
@@ -45,11 +62,14 @@ pattern <- function(x, size, pattern) {
   return(endsf)
 }
 
+mae<-function(x,y,w){
+  return(weighted.mean(abs(x-y),w))
+}
 
 #Load the validation files [No need to run every time]------------------------
-r=500000
-d=3
-k=15000
+r=150000
+d=75000
+k=0
 folder=paste0("ST_RF_",r,"_",k,"_",d)
 
 files=list.files(paste0("/n/holyscratch01/koutrakis_lab/Users/loli/",folder),recursive = T)
@@ -69,25 +89,27 @@ for( f in files){
 }
 test_result=bind_rows(test_result)
 test_result=test_result%>%filter(N>4)
-test_result%>%group_by(N)%>%summarise(c=cor(local_pred,Mean_Conc),
-                                      n=length(local_pred))%>%ggplot()+geom_point(aes(x=N,y=c))+xlim(c(0,30))
-test_result%>%group_by(as.integer(N/5))%>%summarise(c=cor(local_pred,Mean_Conc),
-                                                     n=length(local_pred))
-test_result%>%group_by(N>9,Per_Basement>=0.75)%>%summarise(c=mltools::rmse(local_pred,Mean_Conc,N))
-test_result%>%group_by(N>9,Per_Basement>=0.5)%>%summarise(c=mltools::rmse(local_pred,Mean_Conc,N))
+test_result%>%group_by(N)%>%summarise(m=mae(exp(Obs_Mean_Log),exp(Pred_Mean_Log),N),
+                                      n=length(Obs_Mean_Log))%>%ggplot()+geom_point(aes(x=N,y=m))+xlim(c(0,30))
+test_result%>%group_by(as.integer(N/5))%>%summarise(m=mae(exp(Obs_Mean_Log),exp(Pred_Mean_Log),N),
+                                                     n=length(Obs_Mean_Log))
+test_result%>%group_by(N>9)%>%summarise(c=mltools::rmse(exp(Obs_Mean_Log),exp(Pred_Mean_Log),N))
+test_result%>%group_by(N>19)%>%summarise(c=mltools::rmse(exp(Obs_Mean_Log),exp(Pred_Mean_Log),N))
+test_result%>%group_by(N>29)%>%summarise(c=mltools::rmse(exp(Obs_Mean_Log),exp(Pred_Mean_Log),N))
 
-test_result%>%group_by(N>19,Per_Basement>=0.75)%>%summarise(c=cor(local_pred,Mean_Conc))
-test_result%>%group_by(N>19,Per_Basement>=0.75)%>%summarise(c=mltools::rmse(local_pred,Mean_Conc,N))
-test_result%>%group_by(N>19,Per_Basement>=0.75)%>%summarise(c=weighted.mean(abs(local_pred-Mean_Conc),N))
-
-
-corr(test_result[,c("local_pred","Mean_Conc")],w=test_result$N)
+corr(exp(test_result[,c("Obs_Mean_Log","Pred_Mean_Log")]),w=test_result$N)
 save(file = here::here("Data","Medium Data","NE_MW_Regional_Model_Data",
                        paste0("ST_RF_Performance_",r,"_",k,"_",d,".RData")),test_result)
 
 #Figure 3 the correlation between observed and predicted concentrations----------------
-load(file = here::here("Data","Medium Data","NE_MW_Regional_Model_Data","ST_RF_Performance_5e+05_15000_3.RData"))
-load(paste0("/n/koutrakis_lab/lab/Radon_Mortality/Data/Medium Data/NE_MW_Regional_Model_Data/Scratch_Copies/Regional_Training_",random_num=sample(1:10,1),".RData"))
+load(file = here::here("Data","Medium Data","NE_MW_Regional_Model_Data","ST_RF_Performance_150000_0_75000.RData"))
+load(file=here::here("Data","Medium Data","NE_MW_Regional_Model_Data","Regional_Training_220621.RData"))
+training_data$geometry=NULL
+training_data=training_data[!is.na(training_data$Electricity_Fuel),]
+#Here we only use the ZCTA-level mean with N>4 for evaluation purpose (CV)
+#But we use all ZCTA-level obs as training dataset
+evaluate_data=training_data%>%filter(N>4)
+evaluate_data=evaluate_data%>%left_join(test_result,by=c("ZIPCODE","Month","Year","X","Y","N"))
 zipcode_state_table=unique(training_data[,c("ZIPCODE","State")])
 
 test_result=test_result%>%left_join(zipcode_state_table)
@@ -95,54 +117,175 @@ States=c("MA","NH","ME","VT","CT","RI","NY","PA","MD","NJ","DE",
          "IL","OH","MI","WI","IN","IA","MN","MO","KS","NE","SD","ND")
 
 test_result=test_result%>%arrange(N)
+#Figure 3 consists of two columns. Left column (Panel A) is the declining trend of MAE
+#Right column (Panel B-D) consists of three scatter plots respectively for (N<10, N<20 and N>20)
 
-create_scatter=function(df,add_legend=T,Basement=T,
+#Create left column
+trend_vis=test_result%>%filter(N>4)%>%group_by(N)%>%
+  summarise(mae=mean(37*abs(exp(Pred_Mean_Log)-exp(Obs_Mean_Log))),
+            sample_size=length(N))
+## Bootstrap is needed to estimate the variance in mae with each category of sample size
+boot_mae_Conc=function(x,sim_time=50){
+  boot_tank=list()
+  for(i in 1:sim_time){
+    set.seed(12345+i)
+    run=sample(1:nrow(x),2*nrow(x)/3)
+    run=x[run,] 
+    boot_tank[[i]]=mean(abs(37*exp(run$Obs_Mean_Log)-37*exp(run$Pred_Mean_Log)))
+  }
+  boot_tank=unlist(boot_tank)
+  return(as.numeric(summary(boot_tank)))
+}
+sim_boot_conc=list()
+for(n in 1:30){
+  slice=test_result%>%filter(N==n)
+  sim_boot_conc[[n]]=boot_mae_Conc(slice)
+}
+sim_boot_conc=sim_boot_conc[5:30]
+sim_boot_conc=do.call("rbind",sim_boot_conc)
+sim_boot_conc=as.data.frame(sim_boot_conc)
+names(sim_boot_conc)=c("Min","Q1","Meidan","Mean","Q3","Max")
+sim_boot_conc$N=5:30
+sim_boot_conc$sample_size=unlist(trend_vis[1:26,"sample_size"])
+## Create the figure in the left column
+fig_3_a=ggplot(data=sim_boot_conc)+
+  geom_errorbar(aes(x=N,ymin=Q1,ymax=Q3),width=1,color="#B22234")+
+  geom_path(aes(x=N,y=Mean),linetype="dashed",color="#B22234")+
+  geom_point(aes(x=N,y=Mean),size=0.85)+
+  xlab("Sample Size")+
+  ylab(expression('Mean Absolute Error (Bq/m'^3*')'))+
+  scale_x_continuous(breaks = c(5,10,15,20,25,30))+
+  coord_cartesian(xlim = c(5,30),ylim=c(20,45))+
+  theme_bw()+
+  theme(axis.title = element_text(size = 11),
+        axis.text = element_text(size=10),
+        panel.grid.minor = element_blank())
+fig_3_left_c=cowplot::plot_grid(fig_3_a,labels = "A",label_x = 0.85,label_y = 0.1)
+#Create the right column
+create_fig3_scatter=function(df,add_legend=T,Basement=T,s_width=0.1,
                         xlab_str=expression('Observed ZCTA-level Radon (Bq/m'^3*')'),
                         ylab_str=expression('Predicted ZCTA-level Radon (Bq/m'^3*')')){
-  m=rlm(local_pred~Mean_Conc,weights=N,data=df)
+  df$y=37*exp(df$Obs_Mean_Log)
+  df$x=37*exp(df$Pred_Mean_Log)
+  m <- rlm(y~x,weights =N, df)
   if(Basement){
     p_fill="#B22234"
-    legend_title="Number of\nMeasurements"
+    legend_title="Sample Size"
   }else{
     p_fill="#3C3B6E"
-    legend_title="Number of \nMeasurements"
+    legend_title="Sample Size"
   }
 
   p=ggplot(data=df)+
-    geom_point(aes(x=37*Mean_Conc,y=37*local_pred,size=N),fill=p_fill,shape=21,color="gray75")+
-    geom_abline(intercept = 37*m$coefficients[1],
+    geom_point(aes(x=37*exp(Obs_Mean_Log),y=37*exp(Pred_Mean_Log),size=N),fill=p_fill,shape=21,color="gray75",stroke=s_width)+
+    geom_abline(intercept = m$coefficients[1],
                 slope = m$coefficients[2],linetype="solid",color="darkgreen",size=1)+
     geom_abline(intercept = 0,slope = 1,linetype="dashed",size=0.75)+
     xlab(xlab_str)+
     ylab(ylab_str)+
-    geom_text(x = 350, y = 25, 
+    geom_text(x = 200, y = 450, 
               label = lm_eqn(df=df), parse = TRUE)+
     scale_radius(name=legend_title,
-                 breaks = c(5,10,50,100,250,500),
-                 labels = c(5,10,50,100,250,500),
-                 limits = c(5,500),
-                 range = c(0.1,5),
-                 trans = "log")+
+                 breaks = c(5,10,20,50,100),
+                 labels = c(5,10,20,50,100),
+                 limits = c(5,100),
+                 range = c(0.05,5))+
     coord_fixed(ratio = 1,xlim=c(0,500),ylim=c(0,500))+
     theme_bw()+
-    theme(legend.position = c(0.185,0.725),
-          legend.title = element_text(size=11),
-          legend.text = element_text(size=10),
+    theme(legend.position = "right",
+          legend.title = element_text(size=10),
+          legend.text = element_text(size=9),
           legend.box.background = element_rect(fill="white",size=1),
           axis.text = element_text(size=10),
-          axis.title = element_text(size=11))
+          axis.title = element_text(size=11),
+          plot.margin = unit(c(0.1, 0.1, 0.1, 0.1), "cm"))
   if(add_legend==F){
     p=p+theme(legend.position = "none")
   }
   return(p)
 }
 
-p_small=create_scatter(df=test_result%>%filter(N>4,N<10),Basement = T,add_legend = F,xlab_str = " ",ylab_str = " ")
-p_medium=create_scatter(df=test_result%>%filter(N>9,N<20),Basement = T,add_legend = F,xlab_str = " ",ylab_str = " ")
-p_large=create_scatter(df=test_result%>%filter(N>19,N<30),Basement = T,add_legend = F,xlab_str = " ",ylab_str = " ")
-p_huge=create_scatter(df=test_result%>%filter(N>29),Basement = T,add_legend = F,xlab_str = " ",ylab_str = " ")
+p_small=create_fig3_scatter(df=test_result%>%filter(N>4,N<10),Basement = T,add_legend = F,xlab_str = " ",ylab_str = expression('Predicted Rn level (Bq/m'^3*')'))
+p_medium=create_fig3_scatter(df=test_result%>%filter(N>9,N<15),Basement = T,add_legend = F,xlab_str = " ",ylab_str = expression('Predicted Rn level (Bq/m'^3*')'),
+                             s_width =0.15)
+p_large=create_fig3_scatter(df=test_result%>%filter(N>14),Basement = T,add_legend = F,
+                            xlab_str = expression('Observed Rn level (Bq/m'^3*')'),
+                            ylab_str = expression('Predicted Rn level (Bq/m'^3*')'),s_width=0.5)
+x_p=435
+y_p=35
+
+fig_3_center_c=ggarrange(tag_facet(p_small+
+                                    theme(axis.ticks.x = element_blank(),
+                                          axis.title.x = element_blank(),
+                                          axis.text.x = element_blank(),
+                                          plot.margin = margin(t=1,b = 1))+
+                                          facet_wrap(~"small"),
+                                          tag_pool = "B",
+                                          open = " ",
+                                          close= " ",
+                                          x=x_p,
+                                          y=y_p),
+                         tag_facet(p_medium+
+                                     theme(axis.ticks.x = element_blank(),
+                                           axis.title.x = element_blank(),
+                                           axis.text.x = element_blank(),
+                                           plot.margin = margin(b = 1))+
+                                     facet_wrap(~"medium"),
+                                     tag_pool = "C",
+                                     open = " ",
+                                     close= " ",
+                                     x=x_p,
+                                     y=y_p), 
+                         tag_facet(p_large+
+                                     theme(plot.margin = margin(t = 1))+
+                                     facet_wrap(~"large"),
+                                     tag_pool = "D",
+                                     open = " ",
+                                     close= " ",
+                                     x=x_p,
+                                     y=y_p),
+                         ncol = 1)
+
+#fig_3_center_c=cowplot::plot_grid(p_small,p_medium,p_large,ncol = 1,
+#                                  labels=c("B","C","D"),axis = "l",align = "h",
+#                                  label_x = 0.75,label_y = 0.25)
+
+p_legend=create_fig3_scatter(df=test_result%>%filter(N>19),Basement = T,add_legend = T,
+                             xlab_str = expression('Observed Rn level (Bq/m'^3*')'),
+                             ylab_str = expression('Predicted Rn level (Bq/m'^3*')'),s_width=0.25)
+p_legend=cowplot::get_legend(p_legend)
+fig_3_right_c=plot_grid(NULL,p_legend,NULL,align="b",nrow = 1,rel_widths = c(0.5,5,0.5))
+
+fig_3=cowplot::plot_grid(plotlist = list(fig_3_left_c,fig_3_center_c,fig_3_right_c),
+                         nrow=1,align = "b",rel_widths = c(0.85,1,0.35))
+
+title <- ggdraw() + 
+  draw_label(
+    bquote(atop(bold("Figure 4.")~"The sample size-specific differences/correlations between",
+    "the observed and predicted ZCTA-level monthly radon concentrations.")),
+    size=12,
+    hjust = 0.5
+  ) +
+  theme(
+    # add margin on the left of the drawing canvas,
+    # so title is aligned with left edge of first plot
+    plot.margin = margin(0, 0, 0, 7)
+  )
+
+fig_3=plot_grid(
+  fig_3,
+  title,
+  ncol = 1,
+  # rel_heights values control vertical title margins
+  rel_heights = c(1, 0.075)
+)
+
+ggsave("Fig3_Alternative.pdf",plot=fig_3,
+       width=7,height = 9,units = "in")
 
 
+fig_s_2=cowplot::plot_grid(p_small,p_medium,p_large,p_huge,nrow = 2,labels = c("A","B","C","D"))
+cowplot::save_plot("Fig_S2.pdf",plot=fig_s_2,base_width=9, base_height=9,device = cairo_pdf)
 
 p_base=create_scatter(df=test_result%>%filter(N>19,Per_Basement<0.75),Basement = T,add_legend = F,xlab_str = " ",ylab_str = " ")
 p_base_large=create_scatter(df=test_result%>%filter(N>19,Per_Basement>0.75),Basement=T,add_legend = T)
@@ -154,15 +297,170 @@ fig3=cowplot::plot_grid(p_base,p_above,p_base_large,p_above_large,
                    nrow=2,labels = c("A","B","C","D"))
 cowplot::save_plot("Fig3.pdf",base_height = 9,base_width = 9,plot = fig3)
 
+
+#Figure 3 (Alternative) the trend of MAE against sample size----------------
+load(file = here::here("Data","Medium Data","NE_MW_Regional_Model_Data","ST_RF_Performance_150000_0_75000.RData"))
+
+
+boot_mae_Perc=function(x,sim_time=50){
+  boot_tank=list()
+  for(i in 1:sim_time){
+    set.seed(12345+i)
+    run=sample(1:nrow(x),2*nrow(x)/3)
+    run=x[run,] 
+    boot_tank[[i]]=mean(abs(run$Obs_Over_4-run$Pred_Over_4))
+  }
+  boot_tank=unlist(boot_tank)
+  return(as.numeric(summary(boot_tank)))
+}
+
+
+
+fig3_alternative_b=ggplot(data=sim_boot_perc)+
+  geom_errorbar(aes(x=N,ymin=Q1,ymax=Q3),width=0.35,color="#3C3B6E")+
+  geom_path(aes(x=N,y=Mean),linetype="dashed",color="#3C3B6E")+
+  geom_point(aes(x=N,y=Mean),size=0.85)+
+  xlab("Measurement Count Per ZIP Code and Month")+
+  ylab(expression('Mean Absolute Error (Percent)'))+
+  scale_x_continuous(breaks = c(5,10,15,20,25,30))+
+  coord_cartesian(xlim = c(5,30),ylim=c(0,0.25))+
+  theme_bw()+
+  theme(axis.title = element_text(size = 11),
+        axis.text = element_text(size=10),
+        panel.grid.minor = element_blank())
+fig3_alternative=cowplot::plot_grid(fig3_alternative_a,fig3_alternative_b,
+                                    labels = c("A","B"),label_x = 0.85,label_y = 0.9)
+
+ggsave("Fig3_Alternative.pdf",plot=fig3_alternative,
+       width=9,height = 6,units = "in")
+
+#Figure 4 the correlation between observed and predicted proportion> 4 pCi/L----
+load(file = here::here("Data","Medium Data","NE_MW_Regional_Model_Data","ST_RF_Performance_150000_0_75000.RData"))
+load(file=paste0("/n/holyscratch01/koutrakis_lab/Users/loli/Medium_Data/Regional_Training/Regional_Training_",sample(1:50,1),".RData"))
+training_data$geometry=NULL
+training_data=training_data[!is.na(training_data$Electricity_Fuel),]
+#Here we only use the ZCTA-level mean with N>0 for evaluation purpose (CV)
+#But we use all ZCTA-level obs as training dataset
+evaluate_data=training_data%>%filter(N>4)
+evaluate_data=evaluate_data%>%left_join(test_result,by=c("ZIPCODE","Month","Year","X","Y","N"))
+zipcode_state_table=unique(training_data[,c("ZIPCODE","State")])
+
+test_result=test_result%>%left_join(zipcode_state_table)
+States=c("MA","NH","ME","VT","CT","RI","NY","PA","MD","NJ","DE",
+         "IL","OH","MI","WI","IN","IA","MN","MO","KS","NE","SD","ND")
+
+test_result=test_result%>%arrange(N)
+
+create_f3_scatter_2=function(df,add_legend=T,Basement=T,
+                             xlab_str=expression('Observed ZCTA-level Radon (Bq/m'^3*')'),
+                             ylab_str=expression('Predicted ZCTA-level Radon (Bq/m'^3*')')){
+  #To create a scatter plot in Figure 4 with a style similar with Figure 3
+  df$y=37*exp(df$Obs_Mean_Log)
+  df$x=37*exp(df$Pred_Mean_Log)
+  m <- rlm(y~x,weights =N, df)
+  if(Basement){
+    p_fill="#B22234"
+    legend_title="Number of\nMeasurements"
+  }else{
+    p_fill="#3C3B6E"
+    legend_title="Number of \nMeasurements"
+  }
+  
+  p=ggplot(data=df)+
+    geom_point(aes(x=37*exp(Obs_Mean_Log),y=37*exp(Pred_Mean_Log),size=N),fill=p_fill,shape=21,color="gray75",stroke=0.01)+
+    geom_abline(intercept = m$coefficients[1],
+                slope = m$coefficients[2],linetype="solid",color="darkgreen",size=1)+
+    geom_abline(intercept = 0,slope = 1,linetype="dashed",size=0.75)+
+    xlab(xlab_str)+
+    ylab(ylab_str)+
+    geom_text(x = 350, y = 25, 
+              label = lm_eqn(df=df), parse = TRUE)+
+    scale_radius(name=legend_title,
+                 breaks = c(10,20,50,100,250,500),
+                 labels = c(10,20,50,100,250,500),
+                 limits = c(10,500),
+                 range = c(0.1,3),
+                 trans = "log10")+
+    coord_fixed(ratio = 1,xlim=c(0,500),ylim=c(0,500))+
+    theme_bw()+
+    theme(legend.position = c(0.215,0.8),
+          legend.title = element_text(size=10),
+          legend.text = element_text(size=9),
+          legend.box.background = element_rect(fill="white",size=1),
+          legend.key.height= unit(0.125,"inch"),
+          axis.text = element_text(size=10),
+          axis.title = element_text(size=11))
+  if(add_legend==F){
+    p=p+theme(legend.position = "none")
+  }
+  return(p)
+}
+
+create_f4_scatter=function(df,add_legend=T,
+                          xlab_str=expression('Observed % over 148 Bq/m'^3),
+                          ylab_str=expression('Predicted % over 148 Radon Bq/m'^3)){
+  p_fill="#3C3B6E"
+  legend_title="Number of\nMeasurements"
+  df$y=df$Obs_Over_4
+  df$x=df$Pred_Over_4
+  m <- rlm(y~x,weights =N, df)
+  
+  p=ggplot(data=df)+
+    geom_point(aes(x=Obs_Over_4,y=Pred_Over_4,size=N),fill=p_fill,shape=21,color="gray75",stroke=0.01)+
+    geom_abline(intercept = m$coefficients[1],
+                slope = m$coefficients[2],linetype="solid",color="darkgreen",size=1)+
+    geom_abline(intercept = 0,slope = 1,linetype="dashed",size=0.75)+
+    xlab(xlab_str)+
+    ylab(ylab_str)+
+    geom_text(x = 0.35, y = 0.85, 
+              label = lm_eqn2(df=df), parse = TRUE)+
+    scale_radius(name=legend_title,
+                 breaks = c(10,20,50,100,250,500),
+                 labels = c(10,20,50,100,250,500),
+                 limits = c(10,500),
+                 range = c(0.1,3),
+                 trans = "log10")+
+    coord_fixed(ratio = 1,xlim=c(0,1),ylim=c(0,1))+
+    theme_bw()+
+    theme(legend.position = c(0.825,0.175),
+          legend.title = element_text(size=10),
+          legend.text = element_text(size=9),
+          legend.box.background = element_rect(fill="white",size=1),
+          legend.key.height= unit(0.125,"inch"),
+          axis.text = element_text(size=10),
+          axis.title = element_text(size=11))
+  if(add_legend==F){
+    p=p+theme(legend.position = "none")
+  }
+  return(p)
+}
+
+#f4pa=create_f4_scatter(df=test_result%>%filter(N<10),add_legend = F)
+#f4pb=create_f4_scatter(df=test_result%>%filter(N>9,N<20),add_legend = F)
+f4pa=create_f3_scatter_2(df=test_result%>%filter(N>9),add_legend = T)
+f4pb=create_f4_scatter(df=test_result%>%filter(N>9),xlab_str = "Observed Percent Over Action Level",
+                       ylab_str = "Predicted Percent Over Action Level",add_legend = T)
+#f4pd=create_f4_scatter(df=test_result%>%filter(N>29),add_legend = T)
+
+fig_4=cowplot::plot_grid(f4pa,f4pb,nrow = 1,labels = c("A","B"),label_x = 0.135,label_y = 0.85)
+cowplot::save_plot("Fig4.pdf",plot=fig_4,base_width=9, base_height=6,device = cairo_pdf)
 #[Table 2] Calculate the overall CV results--------------- 
-calculate_cv=function(data,cat){
-  t=data%>%
-    group_by(Per_Basement>0.5)%>%
-    summarise(cor=corr(d=cbind.data.frame(local_pred,Mean_Conc),w=N)^2,s=length(N),
-              me=37*mean(local_pred-Mean_Conc),
-              mae=37*mean(abs(local_pred-Mean_Conc)),
-              mre=mean(abs(local_pred-Mean_Conc)/Mean_Conc))
-  t=cbind(t[2,2:6],t[1,2:6])
+calculate_cv=function(data,cat,cutoff=c(4,14)){
+  t_list=list()
+  l=1
+  for(c in cutoff){
+    t=data%>%filter(N>c)%>%
+      summarise(cor=corr(d=cbind.data.frame(37*exp(Pred_Mean_Log),
+                                            37*exp(Obs_Mean_Log)),w=N)^2,
+                s=length(N),
+                me=37*weighted.mean(exp(Pred_Mean_Log)-exp(Obs_Mean_Log),w=N),
+                mae=37*weighted.mean(abs(exp(Pred_Mean_Log)-exp(Obs_Mean_Log)),w=N),
+                mre=weighted.mean(abs(Pred_Mean_Log-Obs_Mean_Log),w=N)) 
+    t_list[[l]]=t
+    l=l+1
+  }
+  t=cbind.data.frame(t_list)
+  #t=cbind(t[2,2:6],t[1,2:6])
   t=cbind(t,cat)
   return(t)
 }
@@ -172,27 +470,25 @@ MA_States=c("NY","PA","MD","NJ","DE")
 CNE_States=c("IL","OH","MI","WI","IN")
 CNW_States=c("IA","MN","MO","KS","NE","SD","ND")
 
-cutoff=9
+all_cv=calculate_cv(data=test_result%>%filter(State%in%States),cat = "All")
+ne_cv=calculate_cv(data=test_result%>%filter(State%in%NE_States),cat = "New England")
+ma_cv=calculate_cv(data=test_result%>%filter(State%in%MA_States),cat="Mid Atlantic")
+cne_cv=calculate_cv(data=test_result%>%filter(State%in%CNE_States),cat="East North Central")
+cnw_cv=calculate_cv(data=test_result%>%filter(State%in%CNW_States),cat=" West North Central")
+out_cv=calculate_cv(data=test_result%>%filter(!State%in%States),cat=" Outside")
 
-all_cv=calculate_cv(data=test_result%>%filter(N>cutoff),cat = "All")
+winter_cv=calculate_cv(data=test_result%>%filter(State%in%States,Month%in%c(12,1,2)), cat="Winter")
+spring_cv=calculate_cv(data=test_result%>%filter(State%in%States,Month%in%c(3,4,5)), cat="Spring")
+summer_cv=calculate_cv(data=test_result%>%filter(State%in%States,Month%in%c(6,7,8)), cat="Summer")
+autumn_cv=calculate_cv(data=test_result%>%filter(State%in%States,Month%in%c(9,10,11)), cat="Autumn")
 
-ne_cv=calculate_cv(data=test_result%>%filter(State%in%NE_States,N>cutoff),cat = "New England")
-ma_cv=calculate_cv(data=test_result%>%filter(State%in%MA_States,N>cutoff),cat="Mid Atlantic")
-cne_cv=calculate_cv(data=test_result%>%filter(State%in%CNE_States,N>cutoff),cat="East North Central")
-cnw_cv=calculate_cv(data=test_result%>%filter(State%in%CNW_States,N>cutoff),cat=" West North Central")
-out_cv=calculate_cv(data=test_result%>%filter(!State%in%States,N>cutoff),cat=" Outside")
-
-winter_cv=calculate_cv(data=test_result%>%filter(State%in%States,Month%in%c(12,1,2),N>cutoff), cat="Winter")
-spring_cv=calculate_cv(data=test_result%>%filter(State%in%States,Month%in%c(3,4,5),N>cutoff), cat="Spring")
-summer_cv=calculate_cv(data=test_result%>%filter(State%in%States,Month%in%c(6,7,8),N>cutoff), cat="Summer")
-autumn_cv=calculate_cv(data=test_result%>%filter(State%in%States,Month%in%c(9,10,11),N>cutoff), cat="Autumn")
-
-y1_cv=calculate_cv(data=test_result%>%filter(State%in%States,Year>=2001,Year<=2005,N>cutoff), cat= "2001-2005")
-y2_cv=calculate_cv(data=test_result%>%filter(State%in%States,Year>=2006,Year<=2010,N>cutoff), cat = "2006-2010")
-y3_cv=calculate_cv(data=test_result%>%filter(State%in%States,Year>=2011,Year<=2015,N>cutoff), cat= "2011-2015")
-y4_cv=calculate_cv(data=test_result%>%filter(State%in%States,Year>=2015,Year<=2020,N>cutoff), cat= "2016-2020")
+y1_cv=calculate_cv(data=test_result%>%filter(State%in%States,Year>=2001,Year<=2005), cat= "2001-2005")
+y2_cv=calculate_cv(data=test_result%>%filter(State%in%States,Year>=2006,Year<=2010), cat = "2006-2010")
+y3_cv=calculate_cv(data=test_result%>%filter(State%in%States,Year>=2011,Year<=2015), cat= "2011-2015")
+y4_cv=calculate_cv(data=test_result%>%filter(State%in%States,Year>=2015,Year<=2020), cat= "2016-2020")
 
 table_2=rbind(all_cv,ne_cv,ma_cv,cne_cv,cnw_cv,out_cv,winter_cv,spring_cv,summer_cv,autumn_cv,y1_cv,y2_cv,y3_cv,y4_cv)
+write.csv(table_2,file="Table2.csv")
 
 library(ggplot2)
 library(sf)

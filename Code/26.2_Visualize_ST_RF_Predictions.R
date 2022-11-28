@@ -145,9 +145,14 @@ for( f in files){
 all_data=bind_rows(all_data)
 
 create_fig6=function(months, years, title=NULL, select_basement=T ,add_legend=T){
-  p_data=all_data%>%dplyr::filter(Month%in%months,Year%in%years,Basement==select_basement)%>%
-    dplyr::group_by(ZIPS)%>%dplyr::summarise(mean_Rn=mean(Local_Pred))
-  zips_vis=zips%>%left_join(p_data,by=c("ZIP"="ZIPS"))
+  if(select_basement){
+    p_data=all_data%>%dplyr::filter(Month%in%months,Year%in%years)%>%
+      dplyr::group_by(ZIPCode)%>%dplyr::summarise(mean_Rn=mean(Conc_Basement)) 
+  }else{
+    p_data=all_data%>%dplyr::filter(Month%in%months,Year%in%years)%>%
+      dplyr::group_by(ZIPCode)%>%dplyr::summarise(mean_Rn=mean(Conc_Above))
+  }
+  zips_vis=zips%>%left_join(p_data,by=c("ZIP"="ZIPCode"))
   
   if(is.null(title)){
     if(select_basement){
@@ -165,7 +170,7 @@ create_fig6=function(months, years, title=NULL, select_basement=T ,add_legend=T)
                         values = seq(0,1,0.1),
                         limits=c(0,10),
                         labels=37*seq(0,10,1),
-                        colors = (RColorBrewer::brewer.pal(11,"YlOrRd")),
+                        colors = (RColorBrewer::brewer.pal(11,"RdBu")),
                         na.value = "gray",
                         guide = guide_colorsteps(direction = "horizontal",
                                                  title.position = "top",

@@ -33,22 +33,58 @@ training_data=training_data[!is.na(training_data$Electricity_Fuel),]
 evaluate_data=training_data%>%filter(N>4)
 
 #Manually remove the collinear columns
-features=names(training_data)[c(3:4,9:14,17,19:84,87:99)]
+features=names(training_data)[c(3:4,13:18,21,23:88,91:103)]
 
 control=trainControl(method="cv",number = 5,
                      savePredictions = T,returnResamp = "all",
                      verboseIter = FALSE,
                      summaryFunction = weight_summary)
 #The exchange between space and time, one month is equal to r/1000 km
-r=500000
+r=150000
 #the decay rate of Gaussian kernel
-d=3
+d=25000
 #the number of nearest neighbors as training dataset
-k=15000
+#k=15000
+k=0
 
 folder=paste0("ST_RF_",r,"_",k,"_",d)
 if(!dir.exists(paste0("/n/holyscratch01/koutrakis_lab/Users/loli/",folder))){
   dir.create(paste0("/n/holyscratch01/koutrakis_lab/Users/loli/",folder))
+}
+
+fit_model=function(target,return_imp=F){
+  m=caret::train(
+    y=local_training[,target],
+    x=local_training[,features],
+    weights=local_training$W,
+    importance="impurity",
+    metric="RMSE",
+    method="ranger",
+    num.trees=75,
+    sample.fraction=0.65,
+    replace=F,
+    max.depth=35,
+    num.threads = 1,
+    trControl=control,
+    verbose=F,
+    preProc = c("center", "scale"),
+    tuneGrid=data.frame(.mtry=65,.splitrule="extratrees",.min.node.size=5)
+  )
+  local_pred=predict(m,pred)
+  if(return_imp){
+    important_vars=varImp(m)[[1]]%>%dplyr::arrange(desc(Overall))
+    important_vars=t(row.names(important_vars)[1:20])
+    important_vars=as.data.frame(important_vars)
+    names(important_vars)=paste0("Pred_",seq(1,20))
+    important_vars=important_vars %>%
+      mutate(across(everything(), as.character))
+    test=cbind.data.frame(local_pred,pred[,target],R2=corr(m$pred[,c("obs","pred")],m$pred$weights)^2,important_vars)
+    names(test)[1:2]=paste0(c("Pred_","Obs_"),target)
+  }else{
+    test=cbind.data.frame(local_pred,pred[,target],R2=corr(m$pred[,c("obs","pred")],m$pred$weights)^2)
+    names(test)[1:2]=paste0(c("Pred_","Obs_"),target)
+  }
+  return(test)
 }
 
 for(i in rnum+10000*(0:6)){
@@ -68,60 +104,51 @@ for(i in rnum+10000*(0:6)){
       candidate=candidate%>%filter(N>2)
       
       #candidate$Time=r*(12*(candidate$Year-2001)+candidate$Month)
-      candidate$Time=r*calculate_month_diff(x=pred$Month,y=candidate$Month)
-        
-      ngbs=nabor::knn(query=pred[1,c("X","Y","Time")],
-                      data = candidate[,c("X","Y","Time")],
-                      k=k)
+      #candidate$Time=r*calculate_month_diff(x=pred$Month,y=candidate$Month)
       
-      local_training=candidate[ngbs$nn.idx,]
-      b=max(t(ngbs$nn.dists))/d
-      dists=t(ngbs$nn.dists)
-      dist_w=exp(-(dists)^2/(2*b^2))/(b*sqrt(2*pi))
+      ngbs=nabor::knn(query=pred[1,c("X","Y")],
+                      data = candidate[,c("X","Y")],
+                      k=nrow(candidate))
+      local_training_dist=t(ngbs$nn.dists)
+      local_training_index=which(local_training_dist<r)
+      local_training_index=ngbs$nn.idx[local_training_index]
+      local_training=candidate[local_training_index,]
+      local_training_dist=local_training_dist[local_training_dist<r,]
+      #b=max(t(ngbs$nn.dists))/d
+      b=d
+      #dists=t(ngbs$nn.dists)
+      dist_w=exp(-(local_training_dist)^2/(2*b^2))/(b*sqrt(2*pi))
       dist_w=dist_w*(1/max(dist_w))
       #Cap the weights to avoid some extraordinarily high numbers
-      local_training$W=20*(local_training$N>=20)+(local_training$N<20)*local_training$N
-      local_training$dists=as.numeric(dists)
+      local_training$W=30*(local_training$N>=30)+(local_training$N<30)*local_training$N
+      local_training$dists=as.numeric(local_training_dist)
       local_training$W=local_training$W*as.numeric(dist_w)
       local_training=local_training%>%arrange(desc(W))
-      set.seed(500)
-      #We don't care a lot about the local fitting
-      m=caret::train(
-        y=local_training$Mean_Conc,
-        x=local_training[,features],
-        weights=local_training$W,
-        importance="impurity",
-        metric="RMSE",
-        method="ranger",
-        num.trees=75,
-        sample.fraction=0.65,
-        replace=F,
-        max.depth=35,
-        trControl=control,
-        preProc = c("center", "scale"),
-        tuneGrid=data.frame(.mtry=65,.splitrule="extratrees",.min.node.size=5)
-      )
-      local_pred=predict(m,pred)
-      important_vars=varImp(m)[[1]]%>%dplyr::arrange(desc(Overall))
-      important_vars=t(row.names(important_vars)[1:20])
-      important_vars=as.data.frame(important_vars)
-      names(important_vars)=paste0("Pred_",seq(1,20))
-      important_vars=important_vars %>%
-        mutate(across(everything(), as.character))
-      
-      test=cbind.data.frame(local_pred,pred[,c("ZIPCODE","Month","Year","X","Y","N","Mean_Conc","SD_Conc","Per_LDL","Per_Basement")],k,r,d,
-                            R2=corr(m$pred[,c("obs","pred")],m$pred$weights)^2,
-                            important_vars)
-      if(!dir.exists(paste0("/n/holyscratch01/koutrakis_lab/Users/loli/",folder,"/",
-                            evaluate_data[i,"Year"],"/",evaluate_data[i,"Month"],"/"))){
-        dir.create(paste0("/n/holyscratch01/koutrakis_lab/Users/loli/",folder,"/",
-                          evaluate_data[i,"Year"],"/",evaluate_data[i,"Month"],"/"),recursive = T)
+      local_training=local_training%>%filter(W>1e-5)
+      if(nrow(local_training)>10){
+        print(paste0(Sys.time()," ",i," N: ",pred$N," n: ",nrow(local_training))) 
+        set.seed(500)
+        #We don't care a lot about the local fitting
+        log_fit=fit_model(target = "Mean_Log",return_imp = T)
+        R2_fit=fit_model(target = "Over_2",return_imp = F)
+        R4_fit=fit_model(target="Over_4",return_imp=F)
+        
+        test=cbind.data.frame(pred[,c("ZIPCODE","Month","Year","X","Y","N")],
+                              log_fit,R2_fit[1:2],R4_fit[1:2],
+                              k,r,d)
+        
+        if(!dir.exists(paste0("/n/holyscratch01/koutrakis_lab/Users/loli/",folder,"/",
+                              evaluate_data[i,"Year"],"/",evaluate_data[i,"Month"],"/"))){
+          dir.create(paste0("/n/holyscratch01/koutrakis_lab/Users/loli/",folder,"/",
+                            evaluate_data[i,"Year"],"/",evaluate_data[i,"Month"],"/"),recursive = T)
+        }
+        save(file=paste0("/n/holyscratch01/koutrakis_lab/Users/loli/",folder,"/",
+                         evaluate_data[i,"Year"],"/",evaluate_data[i,"Month"],"/",
+                         evaluate_data[i,"ZIPCODE"],".RData"),
+             test)
+        print(paste0(Sys.time()," ",i," Completed: Pred ",format(exp(test$Pred_Mean_Log),digits=3),
+                     ";Obs ",format(exp(test$Obs_Mean_Log),digits=3),"; N ",test$N," n ",nrow(local_training))) 
       }
-      save(file=paste0("/n/holyscratch01/koutrakis_lab/Users/loli/",folder,"/",
-                       evaluate_data[i,"Year"],"/",evaluate_data[i,"Month"],"/",
-                       evaluate_data[i,"ZIPCODE"],".RData"),
-           test)
-      print(paste0(Sys.time()," ",i," Completed: Pred ",format(test$local_pred,digits=3),";Obs ",format(test$Mean_Conc,digits=3),"; N ",test$N))
     }
     
   }

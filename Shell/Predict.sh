@@ -1,9 +1,9 @@
 #!/bin/bash
 #SBATCH -p serial_requeue
 #SBATCH -n 1
-#SBATCH --mem=18000
-#SBATCH -t 1280
-#SBATCH --account=koutrakis_lab
+#SBATCH --mem=50000
+#SBATCH -t 2560
+#SBATCH --account=zanobetti_lab
 #SBATCH -e /n/holyscratch01/koutrakis_lab/Users/loli/log/log_error/Rn_%A_%a.err
 #SBATCH -o /n/holyscratch01/koutrakis_lab/Users/loli/log/log_pred/Model_%A_%a.out # Standard output
 export R_LIBS_USER=$HOME/apps/R:$R_LIBS_USER
