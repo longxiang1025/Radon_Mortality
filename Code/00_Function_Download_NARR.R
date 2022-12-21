@@ -1,4 +1,5 @@
-download_narr_daily<-function(var,year,points,folder="/n/koutrakis_lab/lab/One_Table/Data/NARR/"){
+library(lubridate)
+download_narr_daily<-function(var,year,points,folder="/n/koutrakis_lab/lab/One_Table_Group/Data/NARR/"){
   if(file.exists(paste0(folder,var,"_",year,".nc"))){
     variable<-stack(paste0(folder,var,"_",year,".nc"))
   }else{
@@ -20,7 +21,7 @@ download_narr_daily<-function(var,year,points,folder="/n/koutrakis_lab/lab/One_T
   return(ext_value)
 }
 
-download_narr_daily_subsurface<-function(var,year,month,points,folder="/n/koutrakis_lab/lab/One_Table/Data/NARR/"){
+download_narr_daily_subsurface<-function(var,year,month,points,folder="/n/koutrakis_lab/lab/One_Table_Group/Data/NARR/"){
   month_c=formatC(month,width = 2,flag=0)
   if(file.exists(paste0(folder,var,"_",year,month_c,".nc"))){
     variable<-stack(paste0(folder,var,"_",year,month_c,".nc"))

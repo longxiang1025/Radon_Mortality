@@ -7,9 +7,9 @@ library(grid)
 library(gridExtra)
 library(ggplot2)
 library(sp)
-library(EnvStats)
 library(mgcv)
 library(ggsn)
+sf_use_s2(FALSE)
 
 pattern <- function(x, size, pattern) {
   ex = list(
@@ -29,6 +29,7 @@ pattern <- function(x, size, pattern) {
   return(endsf)
 }
 
+geoprjstring<-"+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs"
 States=c("MA","NH","ME","VT","CT","RI","NY","PA","MD","NJ","DE",
          "IL","OH","MI","WI","IN","IA","MN","MO","KS","NE","SD","ND")
 
@@ -178,6 +179,8 @@ result_data=result_data%>%filter(Init_Count<3)
 # The aim of this section is to add radon potential, humidity, temperature information to data
 ###Add spatial dimensions to the data---------------------------------
 load(here::here("Data","GeoData","2015_Shapes.RData"))
+#switch s2 off, otherwise the coordinates cannot be calculated correctly
+sf_use_s2(FALSE)
 zip_centroid=st_centroid(st_as_sf(zips))
 zip_centroid=cbind.data.frame(zip_centroid$ZIP,st_coordinates(zip_centroid))
 names(zip_centroid)=c("ZIPCODE","Longitude","Latitude")
@@ -674,12 +677,44 @@ f3b
 f3=plot_grid(f3a,f3b,nrow=1,labels = c("A","B"))
 cowplot::save_plot("Figure3_Trends.pdf",f3,base_width = 12,base_height = 9)
 
-##Calculate the adjusted short-term measurements-------------------
+##Calculate the nearby gross-beta, as requested by the reviewer of JAWMA--------
 load(file="Long_and_Short_Extended.RData")
 result_data$Longitude=st_coordinates(result_data)[,1]
 result_data$Latitude=st_coordinates(result_data)[,2]
 result_data_area=result_data%>%filter(State%in%c(States,Neighbour_States))
 result_data_region=result_data%>%filter(State%in%States)
+
+load("/n/koutrakis_lab/lab/One_Table_Group/Data/Beta_Measurements/Beta_Measurements.RData")
+radnet_coords=read.csv("/n/koutrakis_lab/lab/One_Table_Group/Data/RadNet_Locations.csv")
+coordinates(radnet_coords)=~Long+Lat
+proj4string(radnet_coords)=geoprjstring
+radnet_sf=st_as_sf(radnet_coords)
+radnet_sf=radnet_sf%>%mutate(Location=paste0(City,", ",State))
+
+###search through the beta measurements for nearest obs during the follow-up measurement-----
+#create circular buffers for collocates subsets
+collocated_buffer=st_buffer(result_data_region,dist = 350000)
+#use the buffer to select radnet sites within the buffer
+collocated_gross_beta=st_intersects(collocated_buffer,radnet_sf)
+#for each collocated pair, extract the gross beta based on the index in the list
+collocated_beta_list=list()
+for(i in 1:length(collocated_gross_beta)){
+  rad_list=radnet_sf[collocated_gross_beta[[i]],]
+  beta_list=beta_measurements%>%filter(Location%in%rad_list$Location)
+  rad_range=result_data_region[i,c("Follow_Start_Date","Follow_End_Date")]
+  beta_list=beta_list%>%dplyr::filter(starting_date>rad_range$Follow_Start_Date,
+                                      starting_date<rad_range$Follow_End_Date)
+  collocated_beta_list[[i]]=mean(beta_list$Result)
+}
+collocated_beta_list=unlist(collocated_beta_list)
+result_data_region$Beta=collocated_beta_list
+save(result_data_region,file="Long_and_Short_Extended_Beta.RData")
+##Calculate the adjusted short-term measurements-------------------
+load(file="Long_and_Short_Extended_Beta.RData")
+result_data_region$Longitude=st_coordinates(result_data_region)[,1]
+result_data_region$Latitude=st_coordinates(result_data_region)[,2]
+#result_data_area=result_data%>%filter(State%in%c(States,Neighbour_States))
+#result_data_region=result_data%>%filter(State%in%States)
 
 load(file="Merged_Measurements_201031.RData")
 load(here::here("Data","GeoData","2015_Shapes.RData"))
@@ -749,30 +784,31 @@ season_prop=function(start_date,end_date){
 
 
 result_adj=mapply(FUN = doy_adjustment_2,
-                  short_date=result_data_area$Init_End_Date,
-                  start_date=result_data_area$Follow_Start_Date,
-                  end_date=result_data_area$Follow_End_Date,
-                  long=result_data_area$Longitude,
-                  lat=result_data_area$Latitude)
+                  short_date=result_data_region$Init_End_Date,
+                  start_date=result_data_region$Follow_Start_Date,
+                  end_date=result_data_region$Follow_End_Date,
+                  long=result_data_region$Longitude,
+                  lat=result_data_region$Latitude)
 
 result_adj=as.data.frame(t(result_adj))
 names(result_adj)=c("Adj_Est","Adj_Sd")
-result_data_area=cbind.data.frame(result_data_area,result_adj)
-result_data_area$Follow_Measurement_Adjust=
-  result_data_area$Init_Measurement*result_data_area$Adj_Est
-result_data_area$log_Follow_Adj=log(37*result_data_area$Follow_Measurement_Adjust)
+result_data_region=cbind.data.frame(result_data_region,result_adj)
+result_data_region$Follow_Measurement_Adjust=
+  result_data_region$Init_Measurement*result_data_region$Adj_Est
+result_data_region$log_Follow_Adj=log(37*result_data_region$Follow_Measurement_Adjust)
 
 season_att=mapply(FUN=season_prop,
-                  start_date=result_data_area$Follow_Start_Date,end_date=result_data_area$Follow_End_Date)
+                  start_date=result_data_region$Follow_Start_Date,
+                  end_date=result_data_region$Follow_End_Date)
 season_att=as.data.frame(t(season_att))
-result_data_area=cbind.data.frame(result_data_area,season_att)
+result_data_region=cbind.data.frame(result_data_region,season_att)
 
-result_data_area$region=NA
+#result_data_area$region=NA
 
-save(file="Short_and_Long_With_Adj_and Covariates.RData",result_data_area)
+save(file="Short_and_Long_With_Adj_and Covariates.RData",result_data_region)
 ##Run some exploratory analysis to see the correlation between short-term measurement and predictors-----
 # on average normal concentration is ~18% lower than the closed door measurement
-t.test(x=result_data_area$log_Follow,y=result_data_area$log_Follow_Adj,paired = T)
+t.test(x=result_data_region$log_Follow,y=result_data_region$log_Follow_Adj,paired = T)
 
 ##Table to summaries the short-term and predicted radon measurement--------------------------------------
 s_all=result_data%>%summarise(n=length(Init_Measurement),
@@ -956,6 +992,10 @@ m0.6=gam(log_Follow~duration+Winter+Spring+Summer+log_Follow_Adj+s(Longitude,Lat
 summary(m0.6)
 AIC(m0.6)
 
+m0.7=gam(log_Follow~duration+Winter+Spring+Summer+log_Follow_Adj+Beta+s(Longitude,Latitude,k=300,bs="tp"),data=result_data_region)
+summary(m0.7)
+AIC(m0.7)
+
 m0.7=gam(log_Follow-log_Follow_Adj~duration+Winter+Spring+Summer+s(log_Follow_Adj)+s(Longitude,Latitude,k=300,bs="tp"),data=result_data_area)
 summary(m0.7)
 AIC(m0.7)
@@ -963,6 +1003,11 @@ AIC(m0.7)
 pred_state=predict.gam(m0.6,result_data_region)
 cor(pred_state,result_data_region$log_Follow)^2
 
+##Supplementary Table requested by reviewer of JAWMA-------------
+t1=result_data_region%>%group_by(State)%>%summarise(n=length(State),
+                                                    q1_c=quantile(Init_Measurement,0.25),med=median(Init_Measurement),q3_c=quantile(Init_Measurement,0.75),q1_n=quantile(Follow_Measurement,0.25),med_n=median(Follow_Measurement),q3_n=quantile(Follow_Measurement,0.75))
+t2=lab_data%>%filter(TestState%in%States)%>%group_by(TestState,Method=="AT")%>%
+  summarise(n=length(TestState),q1=quantile(PCI.L,0.25,na.rm=T),med=median(PCI.L,na.rm=T),q3=quantile(PCI.L,0.75,na.rm=T))
 ##Figure 4 to show the fit of regression model------------------------------------------------------------
 load(here::here("Data","GeoData","Boundaries.RData"))
 bound_sf<-st_as_sf(bound)
