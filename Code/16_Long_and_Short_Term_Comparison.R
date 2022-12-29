@@ -158,6 +158,12 @@ result_season=as.data.frame(t(result_season))
 result_data=bind_cols(result_data,result_season)
 result_data$Init_Measurement=37*result_data$Init_Measurement
 result_data$Follow_Measurement=37*result_data$Follow_Measurement
+#Impute zeros with 0.2 (1/2 of LDL)
+result_data[result_data$Init_Measurement==0,"Init_Measurement"]=37*0.2
+result_data[result_data$Follow_Measurement==0,"Follow_Measurement"]=37*02
+
+result_data$L_Init_Measurement=log10(result_data$Init_Measurement)
+result_data$L_Follow_Measurement=log10(result_data$Follow_Measurement)
 
 r0=write_summary(d_lb = 0,d_ub = 180,l_lb = 90,l_ub = 360)
 
@@ -231,6 +237,8 @@ a1.1_vis_data$est=as.numeric(substr(a1.1_results$r2_ci,1,5))
 a1.1_vis_data$lci=as.numeric(substr(a1.1_results$r2_ci,9,13))
 a1.1_vis_data$uci=as.numeric(substr(a1.1_results$r2_ci,16,20))
 
+a1.1_vis_data$d_range=factor(a1.1_vis_data$d_range,unique(a1.1_vis_data$d_range))
+
 f4pa=ggplot(data=a1.1_vis_data)+
   geom_crossbar(aes(x=d_range,y=est,ymin=lci,ymax=uci),size=0.25,fatten = 5,width=0.85,fill="gray85")+
   labs(x="Temporal Difference between Short- and Long-term Measurement (Days)",
@@ -242,9 +250,6 @@ f4pa=ggplot(data=a1.1_vis_data)+
         axis.text.y = element_text(size=8),
         axis.title = element_text(size=9),
         panel.grid.minor = element_blank())
-fig4=cowplot::plot_grid(f4pa,f4pb,nrow = 2,labels = c("A","B"))
-cowplot::save_plot(file="Figure4.pdf",plot = fig4,base_width = 6,base_height = 8,device = cairo_pdf)
-
 ##Stratify the data into ~50 stratification defined by the percentiles of length, and run models---------------
 #Determine the breakpoints of each overlaping stratifications
 l_breaks=set_length_breakpoints(n_bpoints = 50,width = 10,df=result_data)
@@ -269,6 +274,7 @@ a1.2_vis_data=a1.2_results[,1:4]
 a1.2_vis_data$est=as.numeric(substr(a1.2_results$r2_ci,1,5))
 a1.2_vis_data$lci=as.numeric(substr(a1.2_results$r2_ci,9,13))
 a1.2_vis_data$uci=as.numeric(substr(a1.2_results$r2_ci,16,20))
+a1.2_vis_data$l_range=factor(a1.2_vis_data$l_range,unique(a1.2_vis_data$l_range))
 
 f4pb=ggplot(data=a1.2_vis_data)+
   geom_crossbar(aes(x=l_range,y=est,ymin=lci,ymax=uci),size=0.25,fatten = 5,width=0.85,fill="gray85")+
@@ -281,6 +287,10 @@ f4pb=ggplot(data=a1.2_vis_data)+
         axis.text.y = element_text(size=8),
         axis.title = element_text(size=9),
         panel.grid.minor = element_blank())
+
+fig4=cowplot::plot_grid(f4pa,f4pb,nrow = 2,labels = c("A","B"))
+cowplot::save_plot(file="Figure4.pdf",plot = fig4,base_width = 6,base_height = 8,device = cairo_pdf)
+
 #Analysis Set 2------------------------------------
 #Further divide each of the four stratifications into three sub-groups based on length of the
 #long-term measurements, then refit the model with the same formula to see whether R2 varies 
@@ -359,8 +369,14 @@ a3_vis_data$est=as.numeric(substr(a3_results$r2_ci,1,5))
 a3_vis_data$lci=as.numeric(substr(a3_results$r2_ci,9,13))
 a3_vis_data$uci=as.numeric(substr(a3_results$r2_ci,15,20))
 
+a3_vis_data$d_range=factor(a3_vis_data$d_range,
+                           levels=unique(a3_vis_data$d_range))
+a3_vis_data$l_range=factor(a3_vis_data$l_range,
+                           levels = unique(a3_vis_data$l_range))
+
 f5=ggplot(data=a3_vis_data)+
-  geom_crossbar(aes(x=d_range,y=est,ymin=lci,ymax=uci),size=0.25,fatten = 5,width=0.85,fill="gray85")+
+  geom_crossbar(aes(x=d_range,
+                    y=est,ymin=lci,ymax=uci),size=0.25,fatten = 5,width=0.85,fill="gray85")+
   labs(x="Temporal Difference between Short- and Long-term Measurement (Days)",
        y=expression('R'^2~'of the Model'))+
   scale_y_continuous(breaks = c(0.25,0.50,0.75,1.0))+
@@ -411,13 +427,13 @@ colors= c("#1f78b4","#a6cee3","#33a02c","#b2df8a")
 us_map=ggplot()+
   geom_sf(data=bound_sf%>%filter(STUSPS%in%c(state.abb[c(1,3:10,12:50)])),fill="white")+
   geom_sf(data=result_data%>%filter(State%in%c(state.abb[c(1,3:10,12:50)]),Gap_Category=="3"),
-          aes(color="Cat4"),shape=24,size=1.75,stroke=0.05,fill=NA)+
+          aes(color="Cat4"),shape=17,size=1.75,stroke=0.05,fill=NA)+
   geom_sf(data=result_data%>%filter(State%in%c(state.abb[c(1,3:10,12:50)]),Gap_Category=="2"),
-          aes(color="Cat3"),shape=24,size=1.75,stroke=0.05,fill=NA)+
+          aes(color="Cat3"),shape=17,size=1.75,stroke=0.05,fill=NA)+
   geom_sf(data=result_data%>%filter(State%in%c(state.abb[c(1,3:10,12:50)]),Gap_Category=="1"),
-          aes(color="Cat2"),shape=24,size=1.75,stroke=0.05,fill=NA)+
+          aes(color="Cat2"),shape=17,size=1.75,stroke=0.05,fill=NA)+
   geom_sf(data=result_data%>%filter(State%in%c(state.abb[c(1,3:10,12:50)]),Gap_Category=="0"),
-          aes(color="Cat1"),shape=24,size=1.75,stroke=0.05,fill=NA)+
+          aes(color="Cat1"),shape=17,size=1.75,stroke=0.05,fill=NA)+
   scale_color_manual("Temporal difference between \n the long- and short-term measurements",
                      breaks = c("Cat1","Cat2","Cat3","Cat4"),
                      values =colors,
@@ -590,7 +606,34 @@ s_histogram=ggplot()+
   )
 s_histogram
 
+s_cdf=ggplot()+
+  stat_ecdf(data = short_term_measurements%>%filter(PCI.L<35,PCI.L>0),aes(x=37*PCI.L,color="All"))+
+  stat_ecdf(data=result_data,aes(x=37*Init_Measurement,color="Paired"))+
+  geom_vline(aes(xintercept=148),size=1.25,color="black",linetype="dashed")+
+  scale_color_manual(NULL,
+                     breaks = c("All","Paired"),
+                     values = c("#3C3B6E","#B22234"),
+                     labels=c("All Short-term Measurements","Paired Short-term Measurements"),
+                     guide=guide_legend(direction = "vertical",
+                                        title.position = "top",
+                                        label.position = "right",
+                                        keywidth = unit(0.25, "inch"),
+                                        keyheight = unit(0.15,"inch")))+
+  coord_cartesian(xlim=c(0,1000),ylim=c(0,1),clip = "on")+
+  xlab(expression('Radon Concentrations (Bq/m'^3*')'))+
+  ylab("Probability")+
+  theme_bw()+
+  theme(
+    axis.title = element_text(size=12),
+    axis.text = element_text(size=11),
+    legend.title = element_text(size=12),
+    legend.text = element_text(size=11),
+    legend.box.margin =  margin(0.2,0.2,0.2,0.2,"in"),
+    legend.position=c(0.6,0.8),
+    legend.background = element_rect(color="black",fill="white",size=0.25)
+  )
 
+s_cdf
 l_histogram=ggplot()+
   geom_histogram(data=long_term_measurements%>%filter(PCI.L<35),aes(x=37*PCI.L,y=..density..,fill="All"),
                  binwidth = 10,color="gray",alpha=0.33,size=0.15)+
@@ -635,8 +678,39 @@ l_histogram=ggplot()+
   )
 l_histogram
 
+l_cdf=ggplot()+
+  stat_ecdf(data = long_term_measurements%>%filter(PCI.L<35,PCI.L>0),aes(x=37*PCI.L,color="All"))+
+  stat_ecdf(data=result_data,aes(x=37*Follow_Measurement,color="Paired"))+
+  geom_vline(aes(xintercept=148),size=1.25,color="black",linetype="dashed")+
+  scale_color_manual(NULL,
+                     breaks = c("All","Paired"),
+                     values = c("#3C3B6E","#B22234"),
+                     labels=c("All Long-term Measurements","Paired Long-term Measurements"),
+                     guide=guide_legend(direction = "vertical",
+                                        title.position = "top",
+                                        label.position = "right",
+                                        keywidth = unit(0.25, "inch"),
+                                        keyheight = unit(0.15,"inch")))+
+  coord_cartesian(xlim=c(0,1000),ylim=c(0,1),clip = "on")+
+  xlab(expression('Radon Concentrations (Bq/m'^3*')'))+
+  ylab("Probability")+
+  theme_bw()+
+  theme(
+    axis.title = element_text(size=12),
+    axis.text = element_text(size=11),
+    legend.title = element_text(size=12),
+    legend.text = element_text(size=11),
+    legend.box.margin =  margin(0.2,0.2,0.2,0.2,"in"),
+    legend.position=c(0.6,0.8),
+    legend.background = element_rect(color="black",fill="white",size=0.25)
+  )
+l_cdf
+
 fig2=cowplot::plot_grid(s_histogram,l_histogram,nrow = 1,labels = c("A","B"),label_x = 0.85,label_y = 0.95)
 ggsave("Figure3.pdf",plot=fig2,width=9,height = 6)
+
+fig2_sup=cowplot::plot_grid(s_cdf,l_cdf,nrow = 1,labels = c("A","B"),label_x = 0.85,label_y = 0.95)
+ggsave("Figure3_Alter.pdf",plot=fig2_sup,width = 9,height = 6)
 #Supplementary Analysis (Restrict to one-year measurement, Inactive)----------
 short_season=mapply(FUN = season_prop,
                      start_date=result_data$Init_Start_Date,
