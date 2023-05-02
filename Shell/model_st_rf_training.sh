@@ -3,7 +3,7 @@
 #SBATCH -n 1
 #SBATCH --mem=18000
 #SBATCH --account=zanobetti_lab
-#SBATCH -t 120
+#SBATCH -t 2160
 #SBATCH -e /n/holyscratch01/koutrakis_lab/Users/loli/log/log_error/Rn_%A_%a.err
 #SBATCH -o /n/holyscratch01/koutrakis_lab/Users/loli/log/log_rn_model/Model_%A_%a.out # Standard output
 export R_LIBS_USER=$HOME/apps/R:$R_LIBS_USER

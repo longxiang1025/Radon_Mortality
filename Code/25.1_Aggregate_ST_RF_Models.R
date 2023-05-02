@@ -82,9 +82,9 @@ for( f in files){
     load(paste0("/n/holyscratch01/koutrakis_lab/Users/loli/",folder,"/",f))
     test_result[[l]]=test
     l=l+1
-    if(l%%1000==0){
-      print(l)
-    } 
+    #if(l%%1000==0){
+      print(paste(l,Sys.time()))
+    #} 
   }
 }
 test_result=bind_rows(test_result)
@@ -99,10 +99,10 @@ test_result%>%group_by(N>29)%>%summarise(c=mltools::rmse(exp(Obs_Mean_Log),exp(P
 
 corr(exp(test_result[,c("Obs_Mean_Log","Pred_Mean_Log")]),w=test_result$N)
 save(file = here::here("Data","Medium Data","NE_MW_Regional_Model_Data",
-                       paste0("ST_RF_Performance_",r,"_",k,"_",d,".RData")),test_result)
+                       paste0("ST_RF_Performance_",r,"_",k,"_",d,"_V6.RData")),test_result)
 
 #Figure 3 the correlation between observed and predicted concentrations----------------
-load(file = here::here("Data","Medium Data","NE_MW_Regional_Model_Data","ST_RF_Performance_150000_0_75000.RData"))
+load(file = here::here("Data","Medium Data","NE_MW_Regional_Model_Data","ST_RF_Performance_150000_0_75000_V6.RData"))
 load(file=here::here("Data","Medium Data","NE_MW_Regional_Model_Data","Regional_Training_220621.RData"))
 training_data$geometry=NULL
 training_data=training_data[!is.na(training_data$Electricity_Fuel),]
@@ -115,7 +115,7 @@ zipcode_state_table=unique(training_data[,c("ZIPCODE","State")])
 test_result=test_result%>%left_join(zipcode_state_table)
 States=c("MA","NH","ME","VT","CT","RI","NY","PA","MD","NJ","DE",
          "IL","OH","MI","WI","IN","IA","MN","MO","KS","NE","SD","ND")
-
+test_result=test_result%>%filter(State%in%States)
 test_result=test_result%>%arrange(N)
 #Figure 3 consists of two columns. Left column (Panel A) is the declining trend of MAE
 #Right column (Panel B-D) consists of three scatter plots respectively for (N<10, N<20 and N>20)
@@ -335,7 +335,7 @@ ggsave("Fig3_Alternative.pdf",plot=fig3_alternative,
        width=9,height = 6,units = "in")
 
 #Figure 4 the correlation between observed and predicted proportion> 4 pCi/L----
-load(file = here::here("Data","Medium Data","NE_MW_Regional_Model_Data","ST_RF_Performance_150000_0_75000.RData"))
+load(file = here::here("Data","Medium Data","NE_MW_Regional_Model_Data","ST_RF_Performance_150000_0_75000_V4.RData"))
 load(file=paste0("/n/holyscratch01/koutrakis_lab/Users/loli/Medium_Data/Regional_Training/Regional_Training_",sample(1:50,1),".RData"))
 training_data$geometry=NULL
 training_data=training_data[!is.na(training_data$Electricity_Fuel),]

@@ -964,9 +964,25 @@ summary(m_all)
 # A GAM model is fitted here to predict short-term radon (logged) with adjusted long-term radon (logged), radon potential
 # season of the year, and more importantly, the spatial trend smooth surface.
 load(file="Short_and_Long_With_Adj_and Covariates.RData")
+###requested by reviewer of JWAMA, only keep the closest short-term measurement in case multiple exist 
 result_data_area$ratio=result_data_area$Follow_Measurement/result_data_area$Follow_Measurement_Adjust
 result_data_area$log_ratio=log(result_data_area$ratio)
 result_data_region=result_data_area%>%filter(State%in%States)
+
+result_data_region_pair=result_data_region%>%
+  group_by(ID,Floor,Follow_Start_Date,Follow_End_Date)%>%
+  summarise(cloest_short_date=Init_Start_Date[which.min(Init_Start_Date-Follow_Start_Date)])
+names(result_data_region_pair)[5]="Init_Start_Date"
+
+result_data_region_long_term=result_data_region%>%dplyr::select(
+  ID,ZIPCODE,State,Floor,Follow_Start_Date,Follow_End_Date,Follow_Method,Follow_Measurement,
+  duration,log_Follow,GRP,RI,Longitude,Latitude,Beta,Winter,Spring,Summer,Autumn
+)
+result_data_region_long_term=unique(result_data_region_long_term)
+  
+result_data_measurements=
+  result_data_region_pair%>%
+  left_join(result_data_region[,c("ID","Floor","Follow_Start_Date","Follow_End_Date","Follow_Measurement")])
 
 m0.1=gam(log_Follow~log_Init,data=result_data_area)
 summary(m0.1)

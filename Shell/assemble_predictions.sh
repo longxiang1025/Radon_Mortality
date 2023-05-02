@@ -14,7 +14,7 @@ Sim=${SLURM_ARRAY_TASK_ID}
 
 export Sim
 
-Rscript --quiet --no-restore --no-save /n/holyscratch01/koutrakis_lab/Users/loli/code/26_Prediction_Spatial_Temporal_RF.R
-#Rscript --quiet --no-restore --no-save /n/koutrakis_lab/lab/Radon_Mortality/Code/26.1_Aggregate_ST_RF_Predictions.R
+#Rscript --quiet --no-restore --no-save /n/holyscratch01/koutrakis_lab/Users/loli/code/26_Prediction_Spatial_Temporal_RF.R
+Rscript --quiet --no-restore --no-save /n/koutrakis_lab/lab/Radon_Mortality/Code/26.1_Aggregate_ST_RF_Predictions.R
 
 sleep 3 # pause to be kind to the scheduler

@@ -170,14 +170,17 @@ for(year in 2001:2021){
   }
 }
 monthly_beta=bind_rows(month_beta_list)
-save(file=here::here("Data","Medium Data","Monthly_Beta.RData"),monthly_beta)
+save(file=here::here("Data","Medium Data","NE_MW_Regional_Model_Data","Monthly_Beta.RData"),monthly_beta)
 
 #
 all=monthly_weather
+all_beta=monthly_beta
 
 for(y in 2001:2021){
   for( m in 1:12){
     monthly_weather=all%>%filter(year==y,month==m)
+    monthly_beta=all_beta%>%filter(year==y,month==m)
     save(file=paste0("/n/holyscratch01/koutrakis_lab/Users/loli/Medium_Data/ZIP_Metero/ZIP_Metero_",y,"_",m,".RData"),monthly_weather)
+    save(file=paste0("/n/holyscratch01/koutrakis_lab/Users/loli/Medium_Data/ZIP_Beta/ZIP_Beta_",y,"_",m,".RData"),monthly_beta)
   }
 }
