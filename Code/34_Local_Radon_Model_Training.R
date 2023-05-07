@@ -2,9 +2,9 @@
 # An adaptive window will be used to guarantee that all sub-models are based on a sufficiently large
 #training data set
 i<-as.numeric(Sys.getenv("Sim"))
-ntree=300
-mtry=20
+
 vis=FALSE
+options(warn=-1)
 
 library(sf)
 library(dplyr)
@@ -14,6 +14,16 @@ library(caret)
 library(ranger)
 library(boot)
 library(mltools)
+
+#four tun-able parameters. The third one n_ngb determine the size of local training dataset, which
+#indirectly govern he extent of local random forest. The fourth one proximity_weight determines whether
+#to use proximity to calculate weights
+ntree=c(100,300)
+mtry=c(10,20)
+n_ngb=c(10000,50000,100000)
+proximity_weight=c(F,T)
+parameter_table=expand.grid(ntree,mtry,n_ngb,proximity_weight)
+names(parameter_table)=c("ntree","mtry","n_ngb","proximity_weight")
 
 weight_summary<-function(data, lev = NULL, model = NULL){
   data=data[!is.na(data$pred),]
@@ -45,19 +55,10 @@ evaluate_zip_list=unique(evaluate_data$ZIPCODE)
 #Select the ZIPCode to work on
 evaluate_zip=evaluate_zip_list[i]
 zip_data=evaluate_data[evaluate_data$ZIPCODE==evaluate_zip,]
+
+
 #(Step 1) Update the training data to remove the observations from the ZIPCode
 training_data=training_data[training_data$ZIPCODE!=evaluate_zip,]
-#(Step 2) Narrow down the training dataset to the closest 50k unqie observations
-dists=dist(training_data[training_data$Obs_Type=="All",c("X","Y")],
-           zip_data[1,c("X","Y")])
-dist_cutoff=quantile(dists,50000/nrow(training_data))
-print(dist_cutoff/1000)
-#(Step 3) Calculate the weight of nearby observation as a joint function of N and distance
-dists=dist(training_data[,c("X","Y")],zip_data[1,c("X","Y")])
-local_training_data=training_data[which(dists<=dist_cutoff),]
-dist_w=exp(-(dists[which(dists<=dist_cutoff)])^2/(2*(dist_cutoff/2)^2))/((dist_cutoff/2)*sqrt(2*pi))
-dist_w=dist_w*(1/max(dist_w))
-local_training_data$W=dist_w*sqrt(local_training_data$N)
 ## For visualizaiton only
 if(vis==T){
   load(here::here("Data","GeoData","2015_Shapes.RData"))
@@ -77,40 +78,79 @@ if(vis==T){
     geom_sf(data=local_pred_vis,color="Red",shape=17,size=5)+
     geom_sf(data=local_pred_vis,color="Red",shape=25,size=5)
 }
+#(Step 2) Narrow down the training dataset to the closest n_ngb unqie observations
+dists=dist(training_data[,c("X","Y")],zip_data[1,c("X","Y")])
 
-m=caret::train(
-  y=local_training_data[,target],
-  x=local_training_data[,columns],
-  weights=sqrt(local_training_data$W),
-  importance="permutation",
-  local.importance=TRUE,
-  metric="RMSE",
-  method="ranger",
-  num.trees=ntree,
-  replace=T,
-  keep.inbag=TRUE,
-  num.threads = 1,
-  trControl=t_control,
-  verbose=T,
-  seed=500,
-  preProc = c("center", "scale"),
-  tuneGrid=data.frame(.mtry=mtry,.splitrule="extratrees",.min.node.size=1)
-)
-var_Importance=(m$finalModel$variable.importance)
-print(var_Importance[order(var_Importance,decreasing = T)])
-
-results=cbind.data.frame(m$finalModel$predictions,local_training_data$log_Rn,local_training_data$N)
-names(results)=c("Pred","Obs","N")
-t=results%>%filter(!is.na(Pred))%>%group_by(N)%>%summarise(c=cor(Pred,Obs,use="complete.obs"),
-                                                           r=rmse(Pred,Obs),
-                                                           n=length(Pred))
-t$ZIPCODE=zip_data[1,"ZIPCODE"]
-print(t)
-zip_data$Pred_log=predict(m,zip_data)
-
-zip_importance=var_Importance
-zip_prediction=zip_data%>%dplyr::select(State,ZIPCODE,month,year,N,Obs_Type,log_Rn,Pred_log)
-zip_prediction$dist_cutoff=dist_cutoff
-
-save(file=paste0("/n/holyscratch01/koutrakis_lab/Users/loli/Medium_Data/National_Model_Evaluation/",zip_data[1,"ZIPCODE"],".RData"),
-     var_Importance,zip_prediction,t)
+for( p in 1:nrow(parameter_table)){
+  #iterate through all combinations of tun-able parameters
+  #if the folder doesn't exist, create the folder
+  sub_folder=paste0("/n/holyscratch01/koutrakis_lab/Users/loli/Medium_Data/National_Model_Evaluation/Sub_",
+                    "NT_",parameter_table[p,"ntree"],"_",
+                    "MT_",parameter_table[p,"mtry"],"_",
+                    "NG_",parameter_table[p,"n_ngb"],"_",
+                    "P_",parameter_table[p,"proximity_weight"])
+  if(!dir.exists(sub_folder)){
+    dir.create(sub_folder)
+  }
+  #If the file doesn't exist, run the model
+  file_name=paste0(sub_folder,"/",zip_data[1,"ZIPCODE"],".RData")
+  if(!file.exists(file_name)){
+    print(Sys.time())
+    print(paste0("ZIPCode:",zip_data[1,"ZIPCODE"]," ",
+                 "NTree:",parameter_table[p,"ntree"]," ",
+                 "MTry:",parameter_table[p,"mtry"]," ",
+                 "N_NGB:",parameter_table[p,"n_ngb"]," ",
+                 "P_Weighted:",parameter_table[p,"proximity_weight"]))
+    dist_cutoff=quantile(dists,parameter_table[p,"n_ngb"]/length(dists))
+    print(dist_cutoff/1000)
+    #(Step 3) Calculate the weight of nearby observation as a joint function of N and distance
+    local_training_data=training_data[which(dists<=dist_cutoff),]
+    if(parameter_table[p,"proximity_weight"]){
+      dist_w=exp(-(dists[which(dists<=dist_cutoff)])^2/(2*(dist_cutoff/2)^2))/((dist_cutoff/2)*sqrt(2*pi))
+      dist_w=dist_w*(1/max(dist_w))
+      local_training_data$W=dist_w*sqrt(local_training_data$N)
+    }else{
+      local_training_data$W=sqrt(local_training_data$N)
+    }
+    m=caret::train(
+      y=local_training_data[,target],
+      x=local_training_data[,columns],
+      weights=local_training_data$W,
+      importance="permutation",
+      local.importance=TRUE,
+      metric="RMSE",
+      method="ranger",
+      num.trees=parameter_table[p,"ntree"],
+      replace=T,
+      keep.inbag=TRUE,
+      num.threads = 1,
+      trControl=t_control,
+      verbose=F,
+      seed=500,
+      preProc = c("center", "scale"),
+      tuneGrid=data.frame(.mtry=parameter_table[p,"mtry"],.splitrule="extratrees",.min.node.size=1)
+    )
+    var_Importance=(m$finalModel$variable.importance)
+    #print(var_Importance[order(var_Importance,decreasing = T)])
+    
+    results=cbind.data.frame(m$finalModel$predictions,local_training_data$log_Rn,local_training_data$N)
+    names(results)=c("Pred","Obs","N")
+    t=results%>%filter(!is.na(Pred))%>%group_by(N)%>%summarise(c=cor(Pred,Obs,use="complete.obs"),
+                                                               r=rmse(Pred,Obs),
+                                                               n=length(Pred))
+    t$ZIPCODE=zip_data[1,"ZIPCODE"]
+    print(t[8:10,])
+    zip_results=zip_data
+    zip_results$Pred_log=predict(m,zip_data)
+    
+    zip_importance=var_Importance
+    zip_prediction=zip_results%>%dplyr::select(State,ZIPCODE,month,year,N,Obs_Type,log_Rn,Pred_log)
+    zip_prediction$dist_cutoff=dist_cutoff
+    zip_prediction$ntree=parameter_table[p,"ntree"]
+    zip_prediction$mtry=parameter_table[p,"mtry"]
+    zip_prediction$n_ngb=parameter_table[p,"n_ngb"]
+    zip_prediction$proximity=parameter_table[p,"proximity_weight"]
+    save(file=file_name,
+         var_Importance,zip_prediction,t)
+  }
+}
